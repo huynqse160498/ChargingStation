@@ -12,8 +12,8 @@ using Repositories.Models;
 namespace Repositories.Migrations
 {
     [DbContext(typeof(ChargeStationContext))]
-    [Migration("20251010043019_AddAttributesToBookingChargingSessionInvoicePayment")]
-    partial class AddAttributesToBookingChargingSessionInvoicePayment
+    [Migration("20251010051846_UpdateBookingInvoicePaymentChargingSession_v2")]
+    partial class UpdateBookingInvoicePaymentChargingSession_v2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
