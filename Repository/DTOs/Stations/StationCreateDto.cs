@@ -22,8 +22,8 @@ namespace Repositories.DTOs.Stations
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
 
-        [MaxLength(20)]
-        public string Status { get; set; } = "Active";
+        //[MaxLength(20)]
+        //public string Status { get; set; } = "Active";
 
         [MaxLength(255)]
         public string? ImageUrl { get; set; }

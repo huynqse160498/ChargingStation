@@ -20,8 +20,8 @@ namespace Repositories.DTOs.Chargers
 
         public decimal? PowerKw { get; set; }
 
-        [MaxLength(20)]
-        public string Status { get; set; } = "Active";
+        //[MaxLength(20)]
+        //public string Status { get; set; } = "Active";
 
         public DateTime? InstalledAt { get; set; }
         public string? ImageUrl { get; set; }

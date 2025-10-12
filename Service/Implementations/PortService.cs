@@ -42,7 +42,7 @@ namespace Services.Implementations
                 ChargerId = dto.ChargerId,
                 ConnectorType = dto.ConnectorType,
                 MaxPowerKw = dto.MaxPowerKw,   // decimal?
-                Status = dto.Status,
+                Status = "Open",
                 ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
@@ -62,7 +62,7 @@ namespace Services.Implementations
             entity.ChargerId = dto.ChargerId;
             entity.ConnectorType = dto.ConnectorType;
             entity.MaxPowerKw = dto.MaxPowerKw;
-            entity.Status = dto.Status;
+            entity.Status = "Open";
             entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
 

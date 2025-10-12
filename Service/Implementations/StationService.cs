@@ -43,7 +43,7 @@ namespace Services.Implementations
                 City = dto.City,
                 Latitude = dto.Latitude,
                 Longitude = dto.Longitude,
-                Status = dto.Status,
+                Status = "Open",
                 ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
@@ -65,7 +65,7 @@ namespace Services.Implementations
             entity.City = dto.City;
             entity.Latitude = dto.Latitude;
             entity.Longitude = dto.Longitude;
-            entity.Status = dto.Status;
+            entity.Status = "Open";
             entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
 

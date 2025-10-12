@@ -42,7 +42,7 @@ namespace Services.Implementations
                 Code = dto.Code,
                 Type = dto.Type,
                 PowerKw = dto.PowerKw, // decimal?
-                Status = dto.Status,
+                Status = "Open",
                 InstalledAt = dto.InstalledAt,
                 ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
@@ -64,7 +64,7 @@ namespace Services.Implementations
             entity.Code = dto.Code;
             entity.Type = dto.Type;
             entity.PowerKw = dto.PowerKw;   // decimal?
-            entity.Status = dto.Status;
+            entity.Status = "Open";
             entity.InstalledAt = dto.InstalledAt;
             entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;

@@ -45,7 +45,7 @@ namespace Services.Implementations
                 BatteryCapacity = dto.BatteryCapacity, // decimal?
                 ConnectorType = dto.ConnectorType,
                 ImageUrl = dto.ImageUrl,
-                Status = dto.Status,
+                Status = "Open",
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -68,7 +68,7 @@ namespace Services.Implementations
             entity.BatteryCapacity = dto.BatteryCapacity; // decimal?
             entity.ConnectorType = dto.ConnectorType;
             entity.ImageUrl = dto.ImageUrl;
-            entity.Status = dto.Status;
+            entity.Status = "Open";
             entity.UpdatedAt = DateTime.UtcNow;
 
             await _repo.UpdateAsync(entity);
@@ -115,5 +115,6 @@ namespace Services.Implementations
             ImageUrl = v.ImageUrl,
             Status = v.Status
         };
+
     }
 }
