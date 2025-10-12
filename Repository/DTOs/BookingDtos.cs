@@ -50,7 +50,13 @@ namespace Repositories.DTOs
                 ErrorMessage = "Trạng thái chỉ được là Pending, Confirmed, Cancelled hoặc Completed")]
             public string Status { get; set; } = "Pending";
         }
-
+        public class ChangeStatus
+        {
+            [Required(ErrorMessage = "Trạng thái không được bỏ trống")]
+            [RegularExpression("Pending|Confirmed|InProgress|Completed|Cancelled",
+                ErrorMessage = "Trạng thái chỉ được là Pending, Confirmed, InProgress, Completed hoặc Cancelled")]
+            public string Status { get; set; }
+        }
         // ===== QUERY (Phân trang & tìm kiếm) =====
         public class Query
         {
@@ -100,4 +106,5 @@ namespace Repositories.DTOs
         public int TotalPages { get; set; }
         public List<T> Items { get; set; } = new();
     }
+
 }

@@ -10,5 +10,6 @@ namespace Services.Interfaces
         Task<string> CreateAsync(BookingDtos.Create dto);
         Task<string> UpdateAsync(int id, BookingDtos.Update dto);
         Task<string> DeleteAsync(int id);
+        Task<string> ChangeStatusAsync(int id, string newStatus);
     }
 }

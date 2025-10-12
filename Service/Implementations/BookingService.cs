@@ -21,13 +21,13 @@ namespace Services.Implementations
         }
 
         // =======================
-        // 🔹 Lấy danh sách (phân trang)
+        // 🔹 Lấy danh sách Booking (phân trang + tìm kiếm)
         // =======================
         public async Task<PagedResult<BookingDtos.ListItem>> GetAllAsync(BookingDtos.Query q)
         {
             var query = _repo.GetAll();
 
-            // Filter
+            // Bộ lọc cơ bản
             if (q.CustomerId.HasValue)
                 query = query.Where(x => x.CustomerId == q.CustomerId);
 
@@ -44,7 +44,7 @@ namespace Services.Implementations
                 query = query.Where(x => x.Status.Contains(q.Search) ||
                                          x.Price.ToString().Contains(q.Search));
 
-            // Sort
+            // Sắp xếp
             bool desc = q.SortDir?.ToLower() == "desc";
             query = (q.SortBy ?? "CreatedAt").ToLower() switch
             {
@@ -53,7 +53,7 @@ namespace Services.Implementations
                 _ => desc ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt)
             };
 
-            // Paging
+            // Phân trang
             var total = await query.LongCountAsync();
             var items = await query.Skip((q.Page - 1) * q.PageSize)
                                    .Take(q.PageSize)
@@ -82,7 +82,7 @@ namespace Services.Implementations
         }
 
         // =======================
-        // 🔹 Lấy chi tiết
+        // 🔹 Lấy chi tiết Booking theo ID
         // =======================
         public async Task<BookingDtos.Detail?> GetByIdAsync(int id)
         {
@@ -109,19 +109,20 @@ namespace Services.Implementations
         // =======================
         public async Task<string> CreateAsync(BookingDtos.Create dto)
         {
+            // Kiểm tra hợp lệ
             if (dto.StartTime >= dto.EndTime)
                 return "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.";
 
-            // ⚠️ Kiểm tra đặt trước tối thiểu 1 tiếng
+            // ⚠️ Đặt trước ít nhất 1 tiếng
             if (dto.StartTime < DateTime.Now.AddHours(1))
                 return "Bạn cần đặt lịch trước ít nhất 1 tiếng trước khi sạc.";
 
-            // 🔸 Kiểm tra xe hợp lệ
+            // Kiểm tra xe
             var vehicle = await _db.Vehicles.FindAsync(dto.VehicleId);
             if (vehicle == null)
                 return "Không tìm thấy xe.";
 
-            // 🔸 Kiểm tra trùng giờ đặt
+            // Kiểm tra trùng lịch
             var overlap = await _db.Bookings.AnyAsync(x =>
                 x.PortId == dto.PortId &&
                 dto.StartTime < x.EndTime &&
@@ -129,7 +130,7 @@ namespace Services.Implementations
             if (overlap)
                 return "Khoảng thời gian này đã có đặt lịch tại cổng sạc này.";
 
-            // 🔹 Tính giá theo loại xe
+            // 🔹 Tính giá
             var price = CalculatePrice(dto.StartTime, dto.EndTime, vehicle.VehicleType);
 
             var booking = new Booking
@@ -140,7 +141,7 @@ namespace Services.Implementations
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
                 Price = price,
-                Status = dto.Status,
+                Status = "Pending", 
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
             };
@@ -166,7 +167,7 @@ namespace Services.Implementations
             if (dto.StartTime < DateTime.Now.AddHours(1))
                 return "Bạn chỉ có thể cập nhật đặt lịch nếu thời gian bắt đầu còn ít nhất 1 tiếng.";
 
-            // 🔸 Kiểm tra trùng giờ khác
+            // Kiểm tra trùng giờ khác
             var overlap = await _db.Bookings.AnyAsync(x =>
                 x.PortId == dto.PortId &&
                 x.BookingId != id &&
@@ -175,7 +176,7 @@ namespace Services.Implementations
             if (overlap)
                 return "Khoảng thời gian này đã được đặt trước.";
 
-            // 🔸 Lấy thông tin xe
+            // Lấy thông tin xe
             var vehicle = await _db.Vehicles.FindAsync(dto.VehicleId);
             if (vehicle == null)
                 return "Không tìm thấy xe.";
@@ -183,6 +184,7 @@ namespace Services.Implementations
             // 🔹 Tính lại giá
             var price = CalculatePrice(dto.StartTime, dto.EndTime, vehicle.VehicleType);
 
+            // Cập nhật thông tin
             b.VehicleId = dto.VehicleId;
             b.PortId = dto.PortId;
             b.StartTime = dto.StartTime;
@@ -213,6 +215,34 @@ namespace Services.Implementations
         }
 
         // =======================
+        // 🔹 Đổi trạng thái Booking
+        // =======================
+        public async Task<string> ChangeStatusAsync(int id, string newStatus)
+        {
+            var booking = await _repo.GetByIdAsync(id);
+            if (booking == null)
+                return "Không tìm thấy đặt lịch.";
+
+            var validStatuses = new[] { "Pending", "Confirmed", "InProgress", "Completed", "Cancelled" };
+            if (!validStatuses.Contains(newStatus))
+                return "Trạng thái không hợp lệ.";
+
+            // Không cho đổi trạng thái khi đã hủy hoặc hoàn tất
+            if (booking.Status == "Cancelled")
+                return "Đặt lịch đã bị hủy, không thể thay đổi trạng thái.";
+            if (booking.Status == "Completed")
+                return "Đặt lịch đã hoàn tất, không thể thay đổi.";
+
+            booking.Status = newStatus;
+            booking.UpdatedAt = DateTime.Now;
+
+            await _repo.UpdateAsync(booking);
+            await _repo.SaveAsync();
+
+            return $"Đã đổi trạng thái đặt lịch #{booking.BookingId} thành '{newStatus}'.";
+        }
+
+        // =======================
         // 🔹 Tính giá theo loại xe
         // =======================
         private decimal CalculatePrice(DateTime? start, DateTime? end, string vehicleType)
@@ -221,7 +251,7 @@ namespace Services.Implementations
                 return 0;
 
             var duration = end.Value - start.Value;
-            var hours = Math.Ceiling(duration.TotalHours);
+            var hours = Math.Ceiling(duration.TotalHours); // làm tròn lên giờ
 
             decimal rate = 20000m; // mặc định xe máy
 
@@ -229,17 +259,14 @@ namespace Services.Implementations
             {
                 var type = vehicleType.Trim().ToLower();
 
-                // 🔹 Kiểm tra chuẩn xác
+                // Phân biệt chính xác theo VehicleType
                 if (type == "car")
                     rate = 40000m;
                 else if (type == "motorbike")
                     rate = 20000m;
-                else
-                    rate = 20000m; // fallback nếu nhập sai
             }
 
             return (decimal)hours * rate;
         }
-
     }
 }
