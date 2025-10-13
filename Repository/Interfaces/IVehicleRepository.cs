@@ -30,7 +30,8 @@ namespace Repositories.Interfaces
             string? model,
             string? status,
             int? yearFrom,
-            int? yearTo
+            int? yearTo,
+            string? vehicleType = null // NEW: thêm filter VehicleType
         );
 
         // Lấy danh sách xe phân trang + filter cơ bản
@@ -42,7 +43,8 @@ namespace Repositories.Interfaces
             string? model,
             string? status,
             int? yearFrom,
-            int? yearTo
+            int? yearTo,
+            string? vehicleType = null          // NEW: thêm filter VehicleType
         );
 
         // NEW: đổi trạng thái nhanh
