@@ -26,6 +26,7 @@ namespace ChargingStationSystem
             // ==================== DEPENDENCY INJECTION ====================
             builder.Services.AddScoped<IAccountRepository, AccountRepository>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+//<<<<<<< HEAD
 
             builder.Services.AddScoped<IStationRepository, StationRepository>();
             builder.Services.AddScoped<IStationService, StationService>();
@@ -39,10 +40,12 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
             builder.Services.AddScoped<IVehicleService, VehicleService>();
 
+//=======
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IBookingService, BookingService>();
             builder.Services.AddScoped<IPricingRuleRepository,PricingRuleRepository>();
-            builder.Services.AddScoped<IPricingRuleService,PricingRuleService>();
+            builder.Services.AddScoped<IPricingRuleService,PricingRuleService>();   
+//>>>>>>> Qhuy
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService
 
             // ==================== JWT CONFIGURATION ====================
