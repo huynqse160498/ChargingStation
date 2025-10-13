@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Repositories.Models;
 
@@ -11,9 +12,11 @@ using Repositories.Models;
 namespace Repositories.Migrations
 {
     [DbContext(typeof(ChargeStationContext))]
-    partial class ChargeStationContextModelSnapshot : ModelSnapshot
+    [Migration("20251012152608_AddVehicleTypeToVehicle")]
+    partial class AddVehicleTypeToVehicle
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -537,35 +540,52 @@ namespace Repositories.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PricingRuleId"));
 
+                    b.Property<string>("ConnectorType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.Property<DateTime?>("EndDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<decimal>("IdleFeePerMin")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
-                    b.Property<decimal>("PricePerKwh")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<decimal>("RatePerKwh")
+                        .HasColumnType("decimal(12, 2)");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<int?>("StationId")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Active");
 
-                    b.Property<string>("TimeRange")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<decimal>("TaxRate")
+                        .HasColumnType("decimal(5, 2)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
 
-                    b.Property<string>("VehicleType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("PricingRuleId");
+                    b.HasKey("PricingRuleId")
+                        .HasName("PK_PricingRule");
 
                     b.HasIndex("StationId");
 
-                    b.ToTable("PricingRules");
+                    b.ToTable("PricingRule", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.Station", b =>
@@ -842,9 +862,13 @@ namespace Repositories.Migrations
 
             modelBuilder.Entity("Repositories.Models.PricingRule", b =>
                 {
-                    b.HasOne("Repositories.Models.Station", null)
+                    b.HasOne("Repositories.Models.Station", "Station")
                         .WithMany("PricingRules")
-                        .HasForeignKey("StationId");
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("FK_PricingRule_Station");
+
+                    b.Navigation("Station");
                 });
 
             modelBuilder.Entity("Repositories.Models.Vehicle", b =>
