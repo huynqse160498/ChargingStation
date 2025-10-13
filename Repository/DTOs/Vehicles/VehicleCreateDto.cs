@@ -10,24 +10,34 @@ namespace Repositories.DTOs.Vehicles
 {
     public class VehicleCreateDto
     {
-        [Required] public int CustomerId { get; set; }      // NEW
-        public int? CompanyId { get; set; }                 // NEW
-        [Range(0, 100)] public int? CurrentSoc { get; set; } // NEW
+        [Required]
+        public int CustomerId { get; set; }
+
+        public int? CompanyId { get; set; }
 
         [Required, MaxLength(100)]
-        public string CarMaker { get; set; } = string.Empty;
+        public string CarMaker { get; set; }
 
-        [Required, MaxLength(120)]
-        public string Model { get; set; } = string.Empty;
+        [Required, MaxLength(100)]
+        public string Model { get; set; }
 
         [Required, MaxLength(50)]
-        public string LicensePlate { get; set; } = string.Empty;
+        public string LicensePlate { get; set; }
 
-        public int? ManufactureYear { get; set; }
         public decimal? BatteryCapacity { get; set; }
-        public string? ConnectorType { get; set; }
-        public string? ImageUrl { get; set; }
-        public string? VehicleType { get; set; }
-        public string? Status { get; set; }
+
+        [Range(0, 100)]
+        public int? CurrentSoc { get; set; }
+
+        [MaxLength(50)]
+        public string ConnectorType { get; set; }
+
+        [Range(1900, 9999)]
+        public int? ManufactureYear { get; set; }
+
+        [MaxLength(255)]
+        public string ImageUrl { get; set; }
+
+        public string VehicleType { get; set; } 
     }
 }
