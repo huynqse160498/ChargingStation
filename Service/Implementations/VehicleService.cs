@@ -1,4 +1,5 @@
-﻿using Repositories.DTOs.Vehicles;
+﻿using Repositories.DTOs;
+using Repositories.DTOs.Vehicles;
 using Repositories.Interfaces;
 using Repositories.Models;
 using Services.Interfaces;
@@ -18,6 +19,8 @@ namespace Services.Implementations
             _repo = repo;
         }
 
+        // ===== Queries =====
+
         public async Task<IEnumerable<VehicleReadDto>> GetAllAsync()
         {
             var data = await _repo.GetAllAsync();
@@ -31,99 +34,122 @@ namespace Services.Implementations
             return MapToReadDto(v);
         }
 
+        public async Task<PagedResult<VehicleReadDto>> GetPagedAsync(
+            int page, int pageSize,
+            string? licensePlate, string? carMaker, string? model, string? status,
+            int? yearFrom, int? yearTo,
+            string? vehicleType // NEW
+        )
+        {
+            var total = await _repo.CountAsync(licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); //NEW
+            var data = await _repo.GetPagedAsync(page, pageSize, licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); //NEW
+
+            // Lưu ý: lớp PagedResult<T> của bạn cần có các thuộc tính: Total, Page, PageSize, Items
+            // Nếu tên khác (vd: TotalCount/Data), hãy đổi tên ở đây cho khớp.
+            return new PagedResult<VehicleReadDto>
+            {
+                TotalItems = total,
+                Page = page,
+                PageSize = pageSize,
+                Items = data.Select(MapToReadDto).ToList()
+            };
+        }
+
+        // ===== Commands =====
+
         public async Task<VehicleReadDto> CreateAsync(VehicleCreateDto dto)
         {
-            if (await _repo.ExistsLicenseAsync(dto.LicensePlate))
+            var normalizedPlate = dto.LicensePlate?.Trim().ToUpperInvariant();
+            if (await _repo.ExistsLicenseAsync(normalizedPlate))
                 throw new InvalidOperationException("Biển số đã tồn tại.");
 
-            var entity = new Vehicle
+            var v = new Vehicle
             {
-                CustomerId = dto.CustomerId,       // NEW
-                CompanyId = dto.CompanyId,         // NEW
-                CurrentSoc = dto.CurrentSoc,       // NEW
-
-                CarMaker = dto.CarMaker,
-                Model = dto.Model,
-                LicensePlate = dto.LicensePlate,
-                ManufactureYear = dto.ManufactureYear,
+                CustomerId = dto.CustomerId,
+                CompanyId = dto.CompanyId,
+                CarMaker = dto.CarMaker?.Trim(),
+                Model = dto.Model?.Trim(),
+                LicensePlate = normalizedPlate,
                 BatteryCapacity = dto.BatteryCapacity,
-                ConnectorType = dto.ConnectorType,
-                ImageUrl = dto.ImageUrl,
-                Status = dto.Status ?? "Open",
-                VehicleType = dto.VehicleType,
+                CurrentSoc = dto.CurrentSoc,
+                ConnectorType = dto.ConnectorType?.Trim(),
+                ManufactureYear = dto.ManufactureYear,
+                ImageUrl = dto.ImageUrl?.Trim(),
+                VehicleType = dto.VehicleType?.Trim(),
+                Status = "Open", //NEW: thống nhất Service dùng Open
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
-            await _repo.AddAsync(entity);
-            return MapToReadDto(entity);
+            await _repo.AddAsync(v);
+            return MapToReadDto(v);
         }
 
-        public async Task<bool> UpdateAsync(int id, VehicleUpdateDto dto)
+        public async Task UpdateAsync(int id, VehicleUpdateDto dto)
         {
-            if (await _repo.ExistsLicenseAsync(dto.LicensePlate, ignoreId: id))
+            var v = await _repo.GetByIdAsync(id);
+            if (v == null) throw new KeyNotFoundException("Không tìm thấy vehicle.");
+
+            var normalizedPlate = dto.LicensePlate?.Trim().ToUpperInvariant();
+            if (await _repo.ExistsLicenseAsync(normalizedPlate, ignoreId: id))
                 throw new InvalidOperationException("Biển số đã tồn tại.");
 
-            var entity = await _repo.GetByIdAsync(id);
-            if (entity == null) return false;
+            // (Tuỳ chính sách) Không đổi CustomerId ở update → bỏ gán CustomerId.
+            v.CompanyId = dto.CompanyId;
+            v.CarMaker = dto.CarMaker?.Trim();
+            v.Model = dto.Model?.Trim();
+            v.LicensePlate = normalizedPlate;
+            v.BatteryCapacity = dto.BatteryCapacity;
+            v.CurrentSoc = dto.CurrentSoc;
+            v.ConnectorType = dto.ConnectorType?.Trim();
+            v.ManufactureYear = dto.ManufactureYear;
+            v.ImageUrl = dto.ImageUrl?.Trim();
+            v.VehicleType = dto.VehicleType?.Trim();
+            v.Status = "Open"; //NEW: thống nhất Service dùng Open
+            v.UpdatedAt = DateTime.UtcNow;
 
-            entity.CompanyId = dto.CompanyId;    // NEW
-            entity.CurrentSoc = dto.CurrentSoc;  // NEW
-
-            entity.CarMaker = dto.CarMaker;
-            entity.Model = dto.Model;
-            entity.LicensePlate = dto.LicensePlate;
-            entity.ManufactureYear = dto.ManufactureYear;
-            entity.BatteryCapacity = dto.BatteryCapacity;
-            entity.ConnectorType = dto.ConnectorType;
-            entity.ImageUrl = dto.ImageUrl;
-            entity.Status = dto.Status ?? "Open";
-            entity.VehicleType = dto.VehicleType;
-            entity.UpdatedAt = DateTime.UtcNow;
-
-            await _repo.UpdateAsync(entity);
-            return true;
+            await _repo.UpdateAsync(v);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task ChangeStatusAsync(int id, string status)
         {
-            var entity = await _repo.GetByIdAsync(id);
-            if (entity == null) return false;
+            var v = await _repo.GetByIdAsync(id);
+            if (v == null) throw new KeyNotFoundException("Không tìm thấy vehicle.");
 
-            await _repo.DeleteAsync(entity);
-            return true;
+            v.Status = (status ?? string.Empty).Trim();
+            v.UpdatedAt = DateTime.UtcNow;
+
+            await _repo.UpdateAsync(v);
         }
 
-        public async Task<(IEnumerable<VehicleReadDto> Items, int Total)> GetPagedAsync(
-            int page, int pageSize,
-            string? licensePlate, string? carMaker, string? model, string? status,
-            int? yearFrom, int? yearTo)
+        public async Task DeleteAsync(int id)
         {
-            var total = await _repo.CountAsync(licensePlate, carMaker, model, status, yearFrom, yearTo);
-            var list = await _repo.GetPagedAsync(page, pageSize, licensePlate, carMaker, model, status, yearFrom, yearTo);
-            return (list.Select(MapToReadDto), total);
+            var v = await _repo.GetByIdAsync(id);
+            if (v == null) throw new KeyNotFoundException("Không tìm thấy vehicle.");
+
+            await _repo.DeleteAsync(v);
         }
 
-        public async Task<bool> ChangeStatusAsync(int id, string status)
-            => await _repo.UpdateStatusAsync(id, status);
+        // ===== Mapping =====
 
         private static VehicleReadDto MapToReadDto(Vehicle v) => new VehicleReadDto
         {
             VehicleId = v.VehicleId,
-            CustomerId = v.CustomerId,   // NEW
-            CompanyId = v.CompanyId,     // NEW
-            CurrentSoc = v.CurrentSoc,   // NEW
+            CustomerId = v.CustomerId,
+            CompanyId = v.CompanyId,
             CarMaker = v.CarMaker,
             Model = v.Model,
             LicensePlate = v.LicensePlate,
-            ManufactureYear = v.ManufactureYear,
             BatteryCapacity = v.BatteryCapacity,
+            CurrentSoc = v.CurrentSoc,
             ConnectorType = v.ConnectorType,
-            VehicleType = v.VehicleType,
-            ImageUrl = v.ImageUrl,
-            Status = v.Status,
+            ManufactureYear = v.ManufactureYear,
             CreatedAt = v.CreatedAt,
-            UpdatedAt = v.UpdatedAt
+            UpdatedAt = v.UpdatedAt,
+            Status = v.Status,
+            ImageUrl = v.ImageUrl,
+            VehicleType = v.VehicleType
         };
     }
 }
+

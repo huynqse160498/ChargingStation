@@ -63,7 +63,7 @@ namespace Repositories.Implementations
         // ========= helpers =========
         private IQueryable<Vehicle> ApplyFilters(IQueryable<Vehicle> q,
             string? licensePlate, string? carMaker, string? model, string? status,
-            int? yearFrom, int? yearTo, string? vehicleType = null) // NEW: thêm vehicleType
+            int? yearFrom, int? yearTo, string? vehicleType = null) // NEW: thêm vehicleType //NEW
         {
             if (!string.IsNullOrWhiteSpace(licensePlate))
             {
@@ -95,10 +95,10 @@ namespace Repositories.Implementations
             if (yearTo.HasValue)
                 q = q.Where(v => v.ManufactureYear <= yearTo.Value);
 
-            if (!string.IsNullOrWhiteSpace(vehicleType))                        // NEW
+            if (!string.IsNullOrWhiteSpace(vehicleType))                        // NEW //NEW
             {
-                var s = vehicleType.Trim().ToUpperInvariant();                  // NEW
-                q = q.Where(v => (v.VehicleType ?? string.Empty).ToUpper().Contains(s)); // NEW
+                var s = vehicleType.Trim().ToUpperInvariant();                  // NEW //NEW
+                q = q.Where(v => (v.VehicleType ?? string.Empty).ToUpper().Contains(s)); // NEW //NEW
             }
 
             return q;
@@ -106,20 +106,20 @@ namespace Repositories.Implementations
 
         public async Task<int> CountAsync(
             string? licensePlate, string? carMaker, string? model, string? status,
-            int? yearFrom, int? yearTo, string? vehicleType = null)             // NEW param
+            int? yearFrom, int? yearTo, string? vehicleType = null)             // NEW param //NEW
         {
             var q = ApplyFilters(_context.Vehicles.AsNoTracking(),
-                                 licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); // NEW
+                                 licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); // NEW //NEW
             return await q.CountAsync();
         }
 
         public async Task<List<Vehicle>> GetPagedAsync(
             int page, int pageSize,
             string? licensePlate, string? carMaker, string? model, string? status,
-            int? yearFrom, int? yearTo, string? vehicleType = null)             // NEW param
+            int? yearFrom, int? yearTo, string? vehicleType = null)             // NEW param //NEW
         {
             var q = ApplyFilters(_context.Vehicles.AsNoTracking(),
-                                 licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); // NEW
+                                 licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); // NEW //NEW
 
             return await q.OrderByDescending(v => v.UpdatedAt ?? v.CreatedAt)
                           .ThenBy(v => v.VehicleId)
@@ -128,7 +128,7 @@ namespace Repositories.Implementations
                           .ToListAsync();
         }
 
-        public async Task<bool> UpdateStatusAsync(int id, string status)
+        public async Task<bool> UpdateStatusAsync(int id, string status) //NEW
         {
             var entity = await _context.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == id);
             if (entity == null) return false;
@@ -140,7 +140,7 @@ namespace Repositories.Implementations
             return true;
         }
 
-        public async Task SaveChangesAsync()
+        public async Task SaveChangesAsync() //NEW
         {
             await _context.SaveChangesAsync();
         }

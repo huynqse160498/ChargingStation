@@ -31,7 +31,7 @@ namespace Repositories.Interfaces
             string? status,
             int? yearFrom,
             int? yearTo,
-            string? vehicleType = null // NEW: thêm filter VehicleType
+            string? vehicleType //NEW: cho phép null để đồng bộ controller/service
         );
 
         // Lấy danh sách xe phân trang + filter cơ bản
@@ -44,13 +44,13 @@ namespace Repositories.Interfaces
             string? status,
             int? yearFrom,
             int? yearTo,
-            string? vehicleType = null          // NEW: thêm filter VehicleType
+            string? vehicleType //NEW: cho phép null để đồng bộ controller/service
         );
 
-        // NEW: đổi trạng thái nhanh
+        //NEW: đổi trạng thái nhanh
         Task<bool> UpdateStatusAsync(int id, string status);
 
-
+        //NEW: gọi khi dùng pattern UnitOfWork (nếu cần)
         Task SaveChangesAsync();
     }
 }
