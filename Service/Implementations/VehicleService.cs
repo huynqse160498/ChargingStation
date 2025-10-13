@@ -46,7 +46,9 @@ namespace Services.Implementations
                 ConnectorType = dto.ConnectorType,
                 ImageUrl = dto.ImageUrl,
                 Status = "Open",
+                VehicleType = dto.VehicleType,
                 CreatedAt = DateTime.UtcNow
+               
             };
 
             await _repo.AddAsync(entity);
@@ -69,6 +71,7 @@ namespace Services.Implementations
             entity.ConnectorType = dto.ConnectorType;
             entity.ImageUrl = dto.ImageUrl;
             entity.Status = "Open";
+            entity.VehicleType = dto.VehicleType;
             entity.UpdatedAt = DateTime.UtcNow;
 
             await _repo.UpdateAsync(entity);
@@ -112,6 +115,7 @@ namespace Services.Implementations
             ManufactureYear = v.ManufactureYear,
             BatteryCapacity = v.BatteryCapacity,
             ConnectorType = v.ConnectorType,
+            VehicleType = v.VehicleType,
             ImageUrl = v.ImageUrl,
             Status = v.Status
         };

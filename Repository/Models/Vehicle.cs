@@ -14,6 +14,7 @@
         public int? CompanyId { get; set; }
 
         public string CarMaker { get; set; }
+
         public string VehicleType { get; set; }  // "Xe máy" hoặc "Ô tô"
     
         public string Model { get; set; }

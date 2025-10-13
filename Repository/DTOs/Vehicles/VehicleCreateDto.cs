@@ -26,6 +26,9 @@ namespace Repositories.DTOs.Vehicles
 
         public string? ConnectorType { get; set; }
         public string? ImageUrl { get; set; }
-        
+
+        public string? VehicleType { get; set; }
+
+
     }
 }
