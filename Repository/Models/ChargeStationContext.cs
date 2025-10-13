@@ -147,25 +147,7 @@ public partial class ChargeStationContext : DbContext
                 .HasConstraintName("FK_ChargingSession_PricingRule");
         });
         #endregion
-        #region PricingRule
-        modelBuilder.Entity<PricingRule>(entity =>
-        {
-            entity.HasKey(e => e.PricingRuleId).HasName("PK_PricingRule");
-            entity.ToTable("PricingRule");
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.RatePerKwh).HasColumnType("decimal(12, 2)").IsRequired();
-            entity.Property(e => e.TaxRate).HasColumnType("decimal(5, 2)").IsRequired();
-            entity.Property(e => e.ConnectorType).HasMaxLength(50);
-            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Active");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
-            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
-
-            entity.HasOne(e => e.Station).WithMany(s => s.PricingRules)
-                .HasForeignKey(e => e.StationId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("FK_PricingRule_Station");
-        });
-        #endregion
+  
         modelBuilder.Entity<Company>(entity =>
         {
             entity.HasKey(e => e.CompanyId).HasName("PK__Company__2D971CACA4C945E6");
