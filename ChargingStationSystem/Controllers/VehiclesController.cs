@@ -16,7 +16,6 @@ namespace ChargingStationSystem.Controllers
         private readonly IVehicleService _service;
         public VehiclesController(IVehicleService service) => _service = service;
 
-        // GET: /api/vehicles
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -24,7 +23,6 @@ namespace ChargingStationSystem.Controllers
             return Ok(data);
         }
 
-        // GET: /api/vehicles/{id}
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -39,10 +37,10 @@ namespace ChargingStationSystem.Controllers
             }
         }
 
-        // POST: /api/vehicles
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] VehicleCreateDto dto)
         {
+            // NEW: dto có thêm CustomerId, CompanyId, CurrentSoc
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
             try
@@ -56,10 +54,10 @@ namespace ChargingStationSystem.Controllers
             }
         }
 
-        // PUT: /api/vehicles/{id}
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] VehicleUpdateDto dto)
         {
+            // NEW: dto có thêm CompanyId, CurrentSoc
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
             try
@@ -73,7 +71,6 @@ namespace ChargingStationSystem.Controllers
             }
         }
 
-        // DELETE: /api/vehicles/{id}
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -81,7 +78,6 @@ namespace ChargingStationSystem.Controllers
             return ok ? NoContent() : NotFound();
         }
 
-        // GET: /api/vehicles/paged?licensePlate=&carMaker=&model=&status=&yearFrom=&yearTo=&page=1&pageSize=20
         [HttpGet("paged")]
         public async Task<IActionResult> GetPaged(
             [FromQuery] int page = 1,
@@ -93,16 +89,12 @@ namespace ChargingStationSystem.Controllers
             [FromQuery] int? yearFrom = null,
             [FromQuery] int? yearTo = null)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 20;
-
             var (items, total) = await _service.GetPagedAsync(
                 page, pageSize, licensePlate, carMaker, model, status, yearFrom, yearTo);
 
             return Ok(new { page, pageSize, total, items });
         }
 
-        // PATCH: /api/vehicles/{id}/status
         public class VehicleChangeStatusRequest { public string Status { get; set; } = string.Empty; }
 
         [HttpPatch("{id:int}/status")]
@@ -115,5 +107,4 @@ namespace ChargingStationSystem.Controllers
             return ok ? NoContent() : NotFound();
         }
     }
-    }
-    
+}

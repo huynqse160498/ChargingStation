@@ -4,7 +4,6 @@ using System;
 using Repositories.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Repositories.Implementations
@@ -20,17 +19,25 @@ namespace Repositories.Implementations
 
         public async Task<List<Vehicle>> GetAllAsync()
         {
-            return await _context.Vehicles.AsNoTracking().ToListAsync();
+            // CHANGED: AsNoTracking + order mới nhất trước
+            return await _context.Vehicles
+                .AsNoTracking()                                           // CHANGED
+                .OrderByDescending(v => v.UpdatedAt ?? v.CreatedAt)      // CHANGED
+                .ThenBy(v => v.VehicleId)                                 // CHANGED
+                .ToListAsync();
         }
 
         public async Task<Vehicle> GetByIdAsync(int id)
         {
+            // Giữ nguyên chữ ký (Vehicle, có thể null) → service nhớ check null
             return await _context.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == id);
         }
 
         public async Task AddAsync(Vehicle vehicle)
         {
             _context.Vehicles.Add(vehicle);
+            // LƯU Ý: Các field theo DTO (CustomerId, CompanyId, CurrentSoc, ...) đã có trên entity Vehicle
+            // nên sẽ được persist bình thường khi SaveChanges.
             await _context.SaveChangesAsync();
         }
 
@@ -48,36 +55,60 @@ namespace Repositories.Implementations
 
         public async Task<bool> ExistsLicenseAsync(string licensePlate, int? ignoreId = null)
         {
-            var q = _context.Vehicles.AsQueryable().Where(x => x.LicensePlate == licensePlate);
+            // CHANGED: chuẩn hoá để so sánh không phân biệt hoa/thường + tránh null
+            var normalized = (licensePlate ?? string.Empty).Trim().ToUpperInvariant(); // CHANGED
+            var q = _context.Vehicles.AsNoTracking().AsQueryable();                    // CHANGED
+
+            q = q.Where(x => (x.LicensePlate ?? string.Empty).ToUpper() == normalized); // CHANGED
             if (ignoreId.HasValue) q = q.Where(x => x.VehicleId != ignoreId.Value);
+
             return await q.AnyAsync();
         }
-
 
         // ========= NEW: helpers =========
         private IQueryable<Vehicle> ApplyFilters(IQueryable<Vehicle> q,
             string? licensePlate, string? carMaker, string? model, string? status,
             int? yearFrom, int? yearTo)
         {
+            // CHANGED: Contains không phân biệt hoa/thường + tránh null
             if (!string.IsNullOrWhiteSpace(licensePlate))
-                q = q.Where(v => v.LicensePlate.Contains(licensePlate));
+            {
+                var s = licensePlate.Trim().ToUpperInvariant();                          // CHANGED
+                q = q.Where(v => (v.LicensePlate ?? string.Empty).ToUpper().Contains(s)); // CHANGED
+            }
+
             if (!string.IsNullOrWhiteSpace(carMaker))
-                q = q.Where(v => v.CarMaker.Contains(carMaker));
+            {
+                var s = carMaker.Trim().ToUpperInvariant();                              // CHANGED
+                q = q.Where(v => (v.CarMaker ?? string.Empty).ToUpper().Contains(s));     // CHANGED
+            }
+
             if (!string.IsNullOrWhiteSpace(model))
-                q = q.Where(v => v.Model.Contains(model));
+            {
+                var s = model.Trim().ToUpperInvariant();                                 // CHANGED
+                q = q.Where(v => (v.Model ?? string.Empty).ToUpper().Contains(s));        // CHANGED
+            }
+
             if (!string.IsNullOrWhiteSpace(status))
-                q = q.Where(v => v.Status == status);
+            {
+                var s = status.Trim();
+                q = q.Where(v => v.Status == s);  // exact match như cũ
+            }
+
             if (yearFrom.HasValue)
-                q = q.Where(v => v.ManufactureYear >= yearFrom);
+                q = q.Where(v => v.ManufactureYear >= yearFrom.Value);                   // CHANGED
+
             if (yearTo.HasValue)
-                q = q.Where(v => v.ManufactureYear <= yearTo);
+                q = q.Where(v => v.ManufactureYear <= yearTo.Value);                     // CHANGED
+
             return q;
         }
 
         public async Task<int> CountAsync(string? licensePlate, string? carMaker, string? model, string? status,
                                           int? yearFrom, int? yearTo)
         {
-            var q = ApplyFilters(_context.Vehicles.AsQueryable(),
+            // CHANGED: AsNoTracking cho count
+            var q = ApplyFilters(_context.Vehicles.AsNoTracking(),                       // CHANGED
                                  licensePlate, carMaker, model, status, yearFrom, yearTo);
             return await q.CountAsync();
         }
@@ -88,7 +119,10 @@ namespace Repositories.Implementations
         {
             var q = ApplyFilters(_context.Vehicles.AsNoTracking(),
                                  licensePlate, carMaker, model, status, yearFrom, yearTo);
-            return await q.OrderBy(v => v.VehicleId)
+
+            // CHANGED: order theo UpdatedAt desc → VehicleId
+            return await q.OrderByDescending(v => v.UpdatedAt ?? v.CreatedAt)            // CHANGED
+                          .ThenBy(v => v.VehicleId)                                      // CHANGED
                           .Skip((page - 1) * pageSize)
                           .Take(pageSize)
                           .ToListAsync();
@@ -98,9 +132,11 @@ namespace Repositories.Implementations
         {
             var entity = await _context.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == id);
             if (entity == null) return false;
-            entity.Status = status;
-            entity.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+
+            entity.Status = status?.Trim();      // CHANGED: trim
+            entity.UpdatedAt = DateTime.UtcNow;  // CHANGED: cập nhật mốc thời gian
+
+            await _context.SaveChangesAsync();   // giữ nguyên pattern hiện tại
             return true;
         }
 

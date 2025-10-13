@@ -38,17 +38,21 @@ namespace Services.Implementations
 
             var entity = new Vehicle
             {
+                CustomerId = dto.CustomerId,       // NEW
+                CompanyId = dto.CompanyId,         // NEW
+                CurrentSoc = dto.CurrentSoc,       // NEW
+
                 CarMaker = dto.CarMaker,
                 Model = dto.Model,
                 LicensePlate = dto.LicensePlate,
                 ManufactureYear = dto.ManufactureYear,
-                BatteryCapacity = dto.BatteryCapacity, // decimal?
+                BatteryCapacity = dto.BatteryCapacity,
                 ConnectorType = dto.ConnectorType,
                 ImageUrl = dto.ImageUrl,
-                Status = "Open",
+                Status = dto.Status ?? "Open",
                 VehicleType = dto.VehicleType,
-                CreatedAt = DateTime.UtcNow
-               
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             await _repo.AddAsync(entity);
@@ -63,14 +67,17 @@ namespace Services.Implementations
             var entity = await _repo.GetByIdAsync(id);
             if (entity == null) return false;
 
+            entity.CompanyId = dto.CompanyId;    // NEW
+            entity.CurrentSoc = dto.CurrentSoc;  // NEW
+
             entity.CarMaker = dto.CarMaker;
             entity.Model = dto.Model;
             entity.LicensePlate = dto.LicensePlate;
             entity.ManufactureYear = dto.ManufactureYear;
-            entity.BatteryCapacity = dto.BatteryCapacity; // decimal?
+            entity.BatteryCapacity = dto.BatteryCapacity;
             entity.ConnectorType = dto.ConnectorType;
             entity.ImageUrl = dto.ImageUrl;
-            entity.Status = "Open";
+            entity.Status = dto.Status ?? "Open";
             entity.VehicleType = dto.VehicleType;
             entity.UpdatedAt = DateTime.UtcNow;
 
@@ -87,28 +94,25 @@ namespace Services.Implementations
             return true;
         }
 
-        // NEW: phân trang + filter
         public async Task<(IEnumerable<VehicleReadDto> Items, int Total)> GetPagedAsync(
             int page, int pageSize,
             string? licensePlate, string? carMaker, string? model, string? status,
             int? yearFrom, int? yearTo)
         {
-            if (page < 1) page = 1;
-            if (pageSize < 1) pageSize = 20;
-
             var total = await _repo.CountAsync(licensePlate, carMaker, model, status, yearFrom, yearTo);
             var list = await _repo.GetPagedAsync(page, pageSize, licensePlate, carMaker, model, status, yearFrom, yearTo);
             return (list.Select(MapToReadDto), total);
         }
 
-        // NEW: đổi status
         public async Task<bool> ChangeStatusAsync(int id, string status)
             => await _repo.UpdateStatusAsync(id, status);
 
-        // Map entity -> dto (đồng bộ decimal?)
         private static VehicleReadDto MapToReadDto(Vehicle v) => new VehicleReadDto
         {
             VehicleId = v.VehicleId,
+            CustomerId = v.CustomerId,   // NEW
+            CompanyId = v.CompanyId,     // NEW
+            CurrentSoc = v.CurrentSoc,   // NEW
             CarMaker = v.CarMaker,
             Model = v.Model,
             LicensePlate = v.LicensePlate,
@@ -117,8 +121,9 @@ namespace Services.Implementations
             ConnectorType = v.ConnectorType,
             VehicleType = v.VehicleType,
             ImageUrl = v.ImageUrl,
-            Status = v.Status
+            Status = v.Status,
+            CreatedAt = v.CreatedAt,
+            UpdatedAt = v.UpdatedAt
         };
-
     }
 }
