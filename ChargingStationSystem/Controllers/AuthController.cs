@@ -39,7 +39,7 @@ namespace ChargingStationSystem.Controllers
 
         // ------------------- Lấy danh sách tài khoản -------------------
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
             var accounts = await _authService.GetAllAsync();
@@ -48,7 +48,7 @@ namespace ChargingStationSystem.Controllers
 
         // ------------------- Lấy tài khoản theo ID -------------------
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Staff")]
+        //[Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> GetById(int id)
         {
             var account = await _authService.GetByIdAsync(id);
@@ -57,7 +57,7 @@ namespace ChargingStationSystem.Controllers
 
         // ------------------- Xóa tài khoản -------------------
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var success = await _authService.DeleteAsync(id);
@@ -67,7 +67,7 @@ namespace ChargingStationSystem.Controllers
 
         // ------------------- Đổi vai trò (chỉ admin) -------------------
         [HttpPut("changerole/{accountId}")]
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeRole(int accountId, [FromQuery] string newRole)
         {
             try
@@ -88,7 +88,7 @@ namespace ChargingStationSystem.Controllers
 
         // ------------------- Đổi trạng thái tài khoản -------------------
         [HttpPut("changestatus/{accountId}")]
-        [Authorize(Roles = "Admin,Staff")]
+        //[Authorize(Roles = "Admin,Staff")]
         public async Task<IActionResult> ChangeStatus(int accountId, [FromQuery] string newStatus)
         {
             try

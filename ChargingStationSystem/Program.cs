@@ -57,6 +57,9 @@ namespace ChargingStationSystem
 
             builder.Services.AddScoped<IPricingRuleRepository, PricingRuleRepository>();
             builder.Services.AddScoped<IPricingRuleService, PricingRuleService>();
+            builder.Services.AddScoped<IVnPayService, VnPayService>();
+            builder.Services.AddScoped<IPaymentService, PaymentService>();
+            builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService
 
@@ -126,6 +129,7 @@ namespace ChargingStationSystem
                         new string[] {}
                     }
                 });
+
             });
 
             // ==================== BUILD APP ====================
