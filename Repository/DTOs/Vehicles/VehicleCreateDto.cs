@@ -36,7 +36,7 @@ namespace Repositories.DTOs.Vehicles
         public int? ManufactureYear { get; set; }
 
         [MaxLength(255)]
-        public string ImageUrl { get; set; }
+        public string? ImageUrl { get; set; }
 
         public string VehicleType { get; set; } 
     }
