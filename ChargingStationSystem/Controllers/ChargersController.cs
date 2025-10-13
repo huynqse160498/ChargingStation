@@ -7,7 +7,6 @@ namespace ChargingStationSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class ChargersController : ControllerBase
     {
         private readonly IChargerService _service;

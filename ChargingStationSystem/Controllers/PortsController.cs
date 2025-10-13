@@ -7,7 +7,6 @@ namespace ChargingStationSystem.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class PortsController : ControllerBase
     {
         private readonly IPortService _service;

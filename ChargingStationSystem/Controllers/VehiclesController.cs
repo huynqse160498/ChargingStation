@@ -10,7 +10,6 @@ namespace ChargingStationSystem.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     [Produces("application/json")]
     public class VehiclesController : ControllerBase
     {
