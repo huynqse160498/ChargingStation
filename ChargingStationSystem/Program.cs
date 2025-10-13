@@ -19,6 +19,19 @@ namespace ChargingStationSystem
             var builder = WebApplication.CreateBuilder(args);
             var configuration = builder.Configuration;
 
+            // ==================== CORS ====================
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFrontend",
+                    policy =>
+                    {
+                        policy.WithOrigins("http://localhost:5173") // domain FE
+                              .AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .AllowCredentials(); // cho phép gửi cookie / token
+                    });
+            });
+
             // ==================== DATABASE ====================
             builder.Services.AddDbContext<ChargeStationContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
@@ -26,7 +39,6 @@ namespace ChargingStationSystem
             // ==================== DEPENDENCY INJECTION ====================
             builder.Services.AddScoped<IAccountRepository, AccountRepository>();
             builder.Services.AddScoped<IAuthService, AuthService>();
-//<<<<<<< HEAD
 
             builder.Services.AddScoped<IStationRepository, StationRepository>();
             builder.Services.AddScoped<IStationService, StationService>();
@@ -40,12 +52,12 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
             builder.Services.AddScoped<IVehicleService, VehicleService>();
 
-//=======
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IBookingService, BookingService>();
-            builder.Services.AddScoped<IPricingRuleRepository,PricingRuleRepository>();
-            builder.Services.AddScoped<IPricingRuleService,PricingRuleService>();   
-//>>>>>>> Qhuy
+
+            builder.Services.AddScoped<IPricingRuleRepository, PricingRuleRepository>();
+            builder.Services.AddScoped<IPricingRuleService, PricingRuleService>();
+
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService
 
             // ==================== JWT CONFIGURATION ====================
@@ -68,19 +80,9 @@ namespace ChargingStationSystem
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = jwtSettings["Issuer"],
-                    ValidAudience = jwtSettings["Audience"], // thêm Audience
+                    ValidAudience = jwtSettings["Audience"],
                     IssuerSigningKey = new SymmetricSecurityKey(key)
                 };
-            });
-
-            // ==================== CORS ====================
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AllowAll",
-                    policy => policy
-                        .AllowAnyOrigin()
-                        .AllowAnyHeader()
-                        .AllowAnyMethod());
             });
 
             // ==================== CONTROLLERS + SWAGGER ====================
@@ -90,6 +92,7 @@ namespace ChargingStationSystem
                     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
                     options.JsonSerializerOptions.WriteIndented = true;
                 });
+
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
@@ -100,7 +103,6 @@ namespace ChargingStationSystem
                     Description = "API hệ thống quản lý trạm sạc xe điện"
                 });
 
-                // Cấu hình Swagger để test JWT
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     In = ParameterLocation.Header,
@@ -124,7 +126,6 @@ namespace ChargingStationSystem
                         new string[] {}
                     }
                 });
-
             });
 
             // ==================== BUILD APP ====================
@@ -138,9 +139,11 @@ namespace ChargingStationSystem
             }
 
             app.UseHttpsRedirection();
-            app.UseCors("AllowAll");
 
-            app.UseAuthentication(); // bắt buộc đặt trước Authorization
+            // ✅ Áp dụng chính xác 1 CORS policy
+            app.UseCors("AllowFrontend");
+
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapControllers();
