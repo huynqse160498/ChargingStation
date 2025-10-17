@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Repositories.DTOs.Ports;
+using Services.Implementations;
 using Services.Interfaces;
 
 namespace ChargingStationSystem.Controllers
@@ -10,7 +11,14 @@ namespace ChargingStationSystem.Controllers
     public class PortsController : ControllerBase
     {
         private readonly IPortService _service;
-        public PortsController(IPortService service) { _service = service; }
+        private readonly IS3Service _s3Service; // NEW s3Service
+
+
+        public PortsController(IPortService service, IS3Service s3Service)
+        {
+            _service = service;
+            _s3Service = s3Service; // NEW
+        }
 
 
         // ======================= [BASIC CRUD] =======================
@@ -82,9 +90,9 @@ namespace ChargingStationSystem.Controllers
         // Lấy danh sách port có phân trang và filter theo charger/status
         [HttpGet("paged")]
         public async Task<IActionResult> GetPaged(
-            [FromQuery] int page = 1, 
+            [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
-            [FromQuery] int? chargerId = null, 
+            [FromQuery] int? chargerId = null,
             [FromQuery] string? status = null)
         {
             var (items, total) = await _service.GetPagedAsync(page, pageSize, chargerId, status);
@@ -109,6 +117,27 @@ namespace ChargingStationSystem.Controllers
         {
             var ok = await _service.ChangeStatusAsync(id, req.Status);
             return ok ? NoContent() : NotFound();
+        }
+
+        // ======================= [UPLOAD IMAGE TO S3] =======================
+        // POST: api/ports/upload
+        // Form-data: file = (chọn ảnh)
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "File rỗng hoặc không hợp lệ." });
+
+            try
+            {
+                // upload vào thư mục "ports" trong bucket
+                var imageUrl = await _s3Service.UploadFileAsync(file, "ports");
+                return Ok(new { imageUrl });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi upload file", error = ex.Message });
+            }
         }
     }
 }
