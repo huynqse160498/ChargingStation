@@ -14,7 +14,7 @@ namespace Repositories.DTOs.Stations
         public string City { get; set; } = string.Empty;
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
-        public string Status { get; set; } = "Active";
+        public string Status { get; set; } = "Open";
         public string? ImageUrl { get; set; }
     }
 }

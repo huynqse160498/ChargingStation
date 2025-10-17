@@ -12,17 +12,23 @@ namespace ChargingStationSystem.Controllers
         private readonly IStationService _service;
         public StationsController(IStationService service) { _service = service; }
 
+
+        // GET: /api/stations
         [HttpGet]
         public async Task<IActionResult> GetAll()
             => Ok(await _service.GetAllAsync());
 
+
+        // GET: /api/stations/{id}
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
             try { return Ok(await _service.GetByIdAsync(id)); }
             catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         }
-   
+
+
+        // POST: /api/stations  (mặc định Status = "Open")
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] StationCreateDto dto)
         {
@@ -34,6 +40,8 @@ namespace ChargingStationSystem.Controllers
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
+
+        // PUT: /api/stations/{id}
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] StationUpdateDto dto)
         {
@@ -45,6 +53,8 @@ namespace ChargingStationSystem.Controllers
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
+
+        // DELETE: /api/stations/{id}
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -65,6 +75,7 @@ namespace ChargingStationSystem.Controllers
             return Ok(new { page, pageSize, total, items });
         }
 
+
         // PATCH: /api/stations/{id}/status
         public class StationChangeStatusRequest { public string Status { get; set; } = string.Empty; }
 
@@ -74,7 +85,11 @@ namespace ChargingStationSystem.Controllers
             if (string.IsNullOrWhiteSpace(req?.Status))
                 return BadRequest(new { message = "Status không được trống." });
 
-            var ok = await _service.ChangeStatusAsync(id, req.Status);
+            var value = req.Status.Trim();
+            if (value != "Open" && value != "Closed")
+                return BadRequest(new { message = "Status chỉ nhận 'Open' hoặc 'Closed'." });
+
+            var ok = await _service.ChangeStatusAsync(id, value);
             return ok ? NoContent() : NotFound();
         }
     }
