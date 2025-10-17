@@ -23,7 +23,7 @@ namespace Repositories.DTOs.Stations
         public decimal? Longitude { get; set; }
 
         //[MaxLength(20)]
-        //public string Status { get; set; } = "Active";
+        public string Status { get; set; } = "Open";
 
         [MaxLength(255)]
         public string? ImageUrl { get; set; }

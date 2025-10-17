@@ -43,7 +43,7 @@ namespace Services.Implementations
                 City = dto.City,
                 Latitude = dto.Latitude,
                 Longitude = dto.Longitude,
-                Status = "Open",
+                Status = string.IsNullOrEmpty(dto.Status) ? "Open" : dto.Status,
                 ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
