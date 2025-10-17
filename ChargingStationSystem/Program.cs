@@ -61,6 +61,8 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 
+            builder.Services.AddScoped<IS3Service, S3Service>();
+
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService
 
             // ==================== JWT CONFIGURATION ====================
