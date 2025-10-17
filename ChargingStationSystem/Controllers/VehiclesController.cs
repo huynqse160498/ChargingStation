@@ -15,6 +15,8 @@ namespace ChargingStationSystem.Controllers
         private readonly IVehicleService _svc;
         public VehiclesController(IVehicleService svc) => _svc = svc;
 
+        // ======================= [GET - PAGED] =======================
+        // GET: /api/vehicles?page=1&pageSize=10&status=Active&carMaker=Tesla...
         [HttpGet]
         public async Task<IActionResult> GetPaged(
             [FromQuery] int page = 1,
@@ -25,13 +27,13 @@ namespace ChargingStationSystem.Controllers
             [FromQuery] string? status = null,
             [FromQuery] int? yearFrom = null,
             [FromQuery] int? yearTo = null,
-            [FromQuery] string? vehicleType = null //NEW
-        )
+            [FromQuery] string? vehicleType = null)
         {
             var result = await _svc.GetPagedAsync(page, pageSize, licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType);
-            return Ok(result); // tránh mọi kiểu gán 'var x = Ok(...)' gây CS0815
+            return Ok(result);
         }
 
+        // ======================= [GET BY ID] =======================
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById([FromRoute] int id)
         {
@@ -39,6 +41,7 @@ namespace ChargingStationSystem.Controllers
             return Ok(data);
         }
 
+        // ======================= [CREATE] =======================
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] VehicleCreateDto dto)
         {
@@ -46,6 +49,7 @@ namespace ChargingStationSystem.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.VehicleId }, created);
         }
 
+        // ======================= [UPDATE] =======================
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update([FromRoute] int id, [FromBody] VehicleUpdateDto dto)
         {
@@ -53,15 +57,23 @@ namespace ChargingStationSystem.Controllers
             return NoContent();
         }
 
+        // ======================= [CHANGE STATUS] =======================
+        // PATCH: /api/vehicles/{id}/status?status=Active
         [HttpPatch("{id:int}/status")]
         public async Task<IActionResult> ChangeStatus([FromRoute] int id, [FromQuery] string status)
         {
             if (string.IsNullOrWhiteSpace(status))
-                return BadRequest("Status không được để trống.");
-            await _svc.ChangeStatusAsync(id, status.Trim());
+                return BadRequest(new { message = "Status không được để trống." });
+
+            var value = status.Trim();
+            if (value != "Active" && value != "Inactive" && value != "Blacklisted" && value != "Retired")
+                return BadRequest(new { message = "Status chỉ nhận: Active / Inactive / Blacklisted / Retired." });
+
+            await _svc.ChangeStatusAsync(id, value);
             return NoContent();
         }
 
+        // ======================= [DELETE] =======================
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete([FromRoute] int id)
         {

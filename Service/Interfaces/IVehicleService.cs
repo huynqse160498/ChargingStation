@@ -19,7 +19,7 @@ namespace Services.Interfaces
             string status,
             int? yearFrom,
             int? yearTo,
-            string vehicleType //NEW
+            string vehicleType 
         );
 
         Task<VehicleReadDto> CreateAsync(VehicleCreateDto dto);
