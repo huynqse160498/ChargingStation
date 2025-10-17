@@ -20,7 +20,8 @@ namespace Repositories.DTOs.Chargers
 
         public decimal? PowerKw { get; set; }
 
-        //[MaxLength(20)]
+        // Chỉ 3 trạng thái hợp lệ: Online | Offline | OutOfOrder
+        [MaxLength(20)]
         public string Status { get; set; } = "Online";
 
         public DateTime? InstalledAt { get; set; }

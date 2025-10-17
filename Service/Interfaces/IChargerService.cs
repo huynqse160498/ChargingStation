@@ -16,7 +16,6 @@ namespace Services.Interfaces
         Task<bool> DeleteAsync(int id);
     
 
-      // NEW
         Task<(IEnumerable<ChargerReadDto> Items, int Total)> GetPagedAsync(
             int page, int pageSize,
             int? stationId, string? code, string? type, string? status,

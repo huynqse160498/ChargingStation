@@ -13,32 +13,37 @@ namespace Services.Implementations
     {
         private readonly IChargerRepository _repo;
 
-        // ===================== NEW: 3 trạng thái vận hành =====================
-        private const string ONLINE = "Online";        // mặc định
+        // Status hợp lệ
+        private const string ONLINE = "Online";
         private const string OFFLINE = "Offline";
         private const string OUT_OF_ORDER = "OutOfOrder";
 
-        private static bool IsValidStatus(string? s)   // NEW
+        private static bool IsValidStatus(string? s)
             => s == ONLINE || s == OFFLINE || s == OUT_OF_ORDER;
+
+        // chuẩn hoá: mặc định Online
+        private static string NormalizeStatus(string? s)
+            => s == OFFLINE ? OFFLINE : (s == OUT_OF_ORDER ? OUT_OF_ORDER : ONLINE);
 
         public ChargerService(IChargerRepository repo)
         {
             _repo = repo;
         }
 
+        // =============== BASIC CRUD ===============
+
         public async Task<IEnumerable<ChargerReadDto>> GetAllAsync()
         {
-            // Giữ nguyên: đọc quick không kèm Ports -> không có Utilization
             var list = await _repo.GetAllAsync();
             return list.Select(MapToRead);
         }
 
         public async Task<ChargerReadDto> GetByIdAsync(int id)
         {
-            // NEW: đọc kèm Ports để tính Utilization
-            var c = await _repo.GetByIdWithPortsAsync(id); // NEW
+            // đọc kèm Ports để tính Utilization
+            var c = await _repo.GetByIdWithPortsAsync(id);
             if (c == null) throw new KeyNotFoundException("Không tìm thấy charger.");
-            return MapToRead(c);                            // NEW
+            return MapToRead(c);
         }
 
         public async Task<ChargerReadDto> CreateAsync(ChargerCreateDto dto)
@@ -46,17 +51,13 @@ namespace Services.Implementations
             if (await _repo.ExistsCodeAsync(dto.Code))
                 throw new InvalidOperationException("Mã charger (Code) đã tồn tại.");
 
-            // NEW: chuẩn hoá status 3 trạng thái, mặc định Online
-            var status = string.IsNullOrWhiteSpace(dto.Status) ? ONLINE : dto.Status!.Trim();
-            if (!IsValidStatus(status)) status = ONLINE;
-
             var entity = new Charger
             {
                 StationId = dto.StationId,
                 Code = dto.Code,
                 Type = dto.Type,
-                PowerKw = dto.PowerKw, // decimal?
-                Status = status,      // NEW: Online/Offline/OutOfOrder
+                PowerKw = dto.PowerKw,
+                Status = NormalizeStatus(dto.Status), // mặc định Online
                 InstalledAt = dto.InstalledAt,
                 ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
@@ -64,9 +65,9 @@ namespace Services.Implementations
 
             await _repo.AddAsync(entity);
 
-            // NEW: đọc lại kèm Ports để trả ra Utilization
+            // trả về kèm Ports (nếu có)
             var withPorts = await _repo.GetByIdWithPortsAsync(entity.ChargerId) ?? entity;
-            return MapToRead(withPorts); // NEW
+            return MapToRead(withPorts);
         }
 
         public async Task<bool> UpdateAsync(int id, ChargerUpdateDto dto)
@@ -80,21 +81,9 @@ namespace Services.Implementations
             entity.StationId = dto.StationId;
             entity.Code = dto.Code;
             entity.Type = dto.Type;
-            entity.PowerKw = dto.PowerKw;   // decimal?
-
-            // ===================== NEW: chỉ set 3 trạng thái hợp lệ =====================
-            if (!string.IsNullOrWhiteSpace(dto.Status))
-            {
-                var s = dto.Status.Trim();
-                if (IsValidStatus(s))
-                    entity.Status = s;
-            }
-            else
-            {
-                // nếu update không gửi status thì giữ nguyên; KHÔNG ép "Open" nữa
-            }
-            // ===========================================================================
-
+            entity.PowerKw = dto.PowerKw;
+            if (!string.IsNullOrWhiteSpace(dto.Status) && IsValidStatus(dto.Status.Trim()))
+                entity.Status = dto.Status.Trim(); // chỉ nhận 3 trạng thái
             entity.InstalledAt = dto.InstalledAt;
             entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
@@ -112,7 +101,8 @@ namespace Services.Implementations
             return true;
         }
 
-        // NEW: paging + filter (trả về kèm Utilization)
+        // =============== PAGING + FILTER ===============
+
         public async Task<(IEnumerable<ChargerReadDto> Items, int Total)> GetPagedAsync(
             int page, int pageSize,
             int? stationId, string? code, string? type, string? status,
@@ -123,10 +113,10 @@ namespace Services.Implementations
 
             var total = await _repo.CountAsync(stationId, code, type, status, minPower, maxPower);
 
-            // NEW: lấy danh sách kèm Ports để tính Utilization
-            var list = await _repo.GetPagedWithPortsAsync(page, pageSize, stationId, status); // NEW
+            // lấy danh sách kèm Ports để tính Utilization
+            var list = await _repo.GetPagedWithPortsAsync(page, pageSize, stationId, status);
 
-            // Giữ các filter code/type/power ở service nếu cần khớp 100%
+            // giữ các filter còn lại tại service cho khớp chữ ký
             if (!string.IsNullOrWhiteSpace(code))
                 list = list.Where(c => c.Code != null && c.Code.Contains(code)).ToList();
             if (!string.IsNullOrWhiteSpace(type))
@@ -139,19 +129,17 @@ namespace Services.Implementations
             return (list.Select(MapToRead), total);
         }
 
-        // NEW: change-status với whitelist 3 trạng thái
+        // =============== CHANGE STATUS ===============
+
         public Task<bool> ChangeStatusAsync(int id, string status)
         {
             if (!IsValidStatus(status))
-                throw new ArgumentException("Status phải là Online | Offline | OutOfOrder.");
+                throw new ArgumentException("Status phải là Online / Offline / OutOfOrder.");
             return _repo.UpdateStatusAsync(id, status);
         }
 
-        // ===================== NEW: tính Utilization theo Ports =====================
-        // Idle    : tất cả "usable" ports đều Available
-        // Busy    : không còn Port Available
-        // Partial : còn Available nhưng cũng có Reserved/Occupied/Disabled
-        // Status != Online => Utilization = null
+        // =============== MAPPING & UTILIZATION ===============
+
         private static string? ComputeUtilization(Charger c)
         {
             if (c.Status != ONLINE) return null;
@@ -166,21 +154,19 @@ namespace Services.Implementations
             if (available == ports.Count - disabled) return "Idle";
             return "Partial";
         }
-        // ==========================================================================
 
-        // NEW: MapToRead có thêm Utilization + counters
         private static ChargerReadDto MapToRead(Charger c) => new ChargerReadDto
         {
             ChargerId = c.ChargerId,
             StationId = c.StationId,
-            Code = c.Code,
-            Type = c.Type,
+            Code = c.Code ?? string.Empty,
+            Type = c.Type ?? string.Empty,
             PowerKw = c.PowerKw,
-            Status = IsValidStatus(c.Status) ? c.Status : ONLINE, // normalize
             InstalledAt = c.InstalledAt,
             ImageUrl = c.ImageUrl,
+            Status = NormalizeStatus(c.Status),
 
-            // ===== NEW: chỉ hiện khi Online =====
+            // read-only
             Utilization = ComputeUtilization(c),
             TotalPorts = c.Ports?.Count ?? 0,
             AvailablePorts = c.Ports?.Count(p => p.Status == "Available") ?? 0,
