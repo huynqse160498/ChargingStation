@@ -40,4 +40,6 @@ public partial class Customer
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
 
     public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+    public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+
 }

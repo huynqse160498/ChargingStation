@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Repositories.Models;
 
@@ -11,9 +12,11 @@ using Repositories.Models;
 namespace Repositories.Migrations
 {
     [DbContext(typeof(ChargeStationContext))]
-    partial class ChargeStationContextModelSnapshot : ModelSnapshot
+    [Migration("20251017061604_AddSubscriptionTables")]
+    partial class AddSubscriptionTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,62 +24,6 @@ namespace Repositories.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Invoice", b =>
-                {
-                    b.Property<int>("InvoiceId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceId"));
-
-                    b.Property<int>("BillingMonth")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BillingYear")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
-
-                    b.Property<bool>("IsMonthlyInvoice")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Unpaid");
-
-                    b.Property<decimal?>("SubscriptionAdjustment")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<int>("SubscriptionId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("Subtotal")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<decimal?>("Tax")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<decimal?>("Total")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
-
-                    b.HasKey("InvoiceId");
-
-                    b.HasIndex("SubscriptionId");
-
-                    b.ToTable("Invoice", (string)null);
-                });
 
             modelBuilder.Entity("Repositories.Models.Account", b =>
                 {
@@ -120,7 +67,8 @@ namespace Repositories.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.HasKey("AccountId");
+                    b.HasKey("AccountId")
+                        .HasName("PK__Account__349DA5A68BF58D4A");
 
                     b.ToTable("Account", (string)null);
                 });
@@ -167,7 +115,8 @@ namespace Repositories.Migrations
                     b.Property<int>("VehicleId")
                         .HasColumnType("int");
 
-                    b.HasKey("BookingId");
+                    b.HasKey("BookingId")
+                        .HasName("PK__Booking__73951AED49396CC4");
 
                     b.HasIndex("CustomerId");
 
@@ -200,10 +149,11 @@ namespace Repositories.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<DateTime?>("InstalledAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<decimal?>("PowerKw")
-                        .HasColumnType("decimal(6,2)");
+                        .HasColumnType("decimal(6, 2)")
+                        .HasColumnName("PowerKW");
 
                     b.Property<int>("StationId")
                         .HasColumnType("int");
@@ -223,7 +173,8 @@ namespace Repositories.Migrations
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("(getdate())");
 
-                    b.HasKey("ChargerId");
+                    b.HasKey("ChargerId")
+                        .HasName("PK__Charger__EE76D991806955FB");
 
                     b.HasIndex("StationId");
 
@@ -259,12 +210,9 @@ namespace Repositories.Migrations
                         .HasColumnType("datetime");
 
                     b.Property<decimal?>("EnergyKwh")
-                        .HasColumnType("decimal(10,2)");
+                        .HasColumnType("decimal(10, 2)");
 
                     b.Property<int?>("IdleMin")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("InvoiceId")
                         .HasColumnType("int");
 
                     b.Property<int>("PortId")
@@ -286,13 +234,13 @@ namespace Repositories.Migrations
                         .HasDefaultValue("Active");
 
                     b.Property<decimal?>("Subtotal")
-                        .HasColumnType("decimal(12,2)");
+                        .HasColumnType("decimal(12, 2)");
 
                     b.Property<decimal?>("Tax")
-                        .HasColumnType("decimal(12,2)");
+                        .HasColumnType("decimal(12, 2)");
 
                     b.Property<decimal?>("Total")
-                        .HasColumnType("decimal(12,2)");
+                        .HasColumnType("decimal(12, 2)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -302,14 +250,14 @@ namespace Repositories.Migrations
                     b.Property<int>("VehicleId")
                         .HasColumnType("int");
 
-                    b.HasKey("ChargingSessionId");
+                    b.HasKey("ChargingSessionId")
+                        .HasName("PK__Charging__F980BBA01825010D");
 
                     b.HasIndex("BookingId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("UQ__Charging__BookingId");
 
                     b.HasIndex("CustomerId");
-
-                    b.HasIndex("InvoiceId");
 
                     b.HasIndex("PortId");
 
@@ -368,7 +316,8 @@ namespace Repositories.Migrations
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("(getdate())");
 
-                    b.HasKey("CompanyId");
+                    b.HasKey("CompanyId")
+                        .HasName("PK__Company__2D971CACA4C945E6");
 
                     b.ToTable("Company", (string)null);
                 });
@@ -418,13 +367,77 @@ namespace Repositories.Migrations
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("(getdate())");
 
-                    b.HasKey("CustomerId");
+                    b.HasKey("CustomerId")
+                        .HasName("PK__Customer__A4AE64D85719FCC9");
 
                     b.HasIndex("AccountId");
 
                     b.HasIndex("CompanyId");
 
                     b.ToTable("Customer", (string)null);
+                });
+
+            modelBuilder.Entity("Repositories.Models.Invoice", b =>
+                {
+                    b.Property<int>("InvoiceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceId"));
+
+                    b.Property<int?>("BillingMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("BillingYear")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ChargingSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.Property<bool>("IsMonthlyInvoice")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Unpaid");
+
+                    b.Property<decimal?>("SubscriptionAdjustment")
+                        .HasColumnType("decimal(12, 2)");
+
+                    b.Property<int?>("SubscriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Subtotal")
+                        .HasColumnType("decimal(12, 2)");
+
+                    b.Property<decimal?>("Tax")
+                        .HasColumnType("decimal(12, 2)");
+
+                    b.Property<decimal?>("Total")
+                        .HasColumnType("decimal(12, 2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.HasKey("InvoiceId")
+                        .HasName("PK__Invoice__D796AAB53C796279");
+
+                    b.HasIndex("ChargingSessionId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ__Invoice__ChargingSessionId");
+
+                    b.HasIndex("SubscriptionId");
+
+                    b.ToTable("Invoice", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.Payment", b =>
@@ -436,13 +449,15 @@ namespace Repositories.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PaymentId"));
 
                     b.Property<decimal?>("Amount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(12, 2)");
 
                     b.Property<int?>("BookingId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
@@ -451,18 +466,25 @@ namespace Repositories.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Method")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime");
 
                     b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Success");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
 
-                    b.HasKey("PaymentId");
+                    b.HasKey("PaymentId")
+                        .HasName("PK__Payment__9B556A38F8427D9A");
 
                     b.HasIndex("BookingId");
 
@@ -470,7 +492,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payment", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.Port", b =>
@@ -485,31 +507,43 @@ namespace Repositories.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Code")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("ConnectorType")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
 
                     b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<decimal?>("MaxPowerKw")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(6, 2)")
+                        .HasColumnName("MaxPowerKW");
 
                     b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Active");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
 
-                    b.HasKey("PortId");
+                    b.HasKey("PortId")
+                        .HasName("PK__Port__D859BF8F9FD220FA");
 
                     b.HasIndex("ChargerId");
 
-                    b.ToTable("Ports");
+                    b.ToTable("Port", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.PricingRule", b =>
@@ -560,162 +594,50 @@ namespace Repositories.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("StationId"));
 
                     b.Property<string>("Address")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("City")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal?>("Latitude")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("Longitude")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("StationName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("StationId");
-
-                    b.ToTable("Stations");
-                });
-
-            modelBuilder.Entity("Repositories.Models.SubscriptionPlan", b =>
-                {
-                    b.Property<int>("SubscriptionPlanId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SubscriptionPlanId"));
-
-                    b.Property<string>("Benefits")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("(getdate())");
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
 
-                    b.Property<decimal?>("DiscountPercent")
-                        .HasColumnType("decimal(5,2)");
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("decimal(9, 6)");
 
-                    b.Property<int?>("FreeIdleMinutes")
-                        .HasColumnType("int");
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("decimal(9, 6)");
 
-                    b.Property<bool>("IsForCompany")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("PlanName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<decimal>("PriceMonthly")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<decimal?>("PriceYearly")
-                        .HasColumnType("decimal(12,2)");
+                    b.Property<string>("StationName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("Active");
 
-                    b.Property<DateTime>("UpdatedAt")
+                    b.Property<DateTime?>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("(getdate())");
 
-                    b.HasKey("SubscriptionPlanId");
+                    b.HasKey("StationId")
+                        .HasName("PK__Station__E0D8A6BD39F2BE04");
 
-                    b.ToTable("SubscriptionPlan", (string)null);
+                    b.ToTable("Station", (string)null);
                 });
 
-            modelBuilder.Entity("Repositories.Models.Vehicle", b =>
-                {
-                    b.Property<int>("VehicleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VehicleId"));
-
-                    b.Property<decimal?>("BatteryCapacity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("CarMaker")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("CompanyId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ConnectorType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CurrentSoc")
-                        .HasColumnType("int");
-
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("LicensePlate")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("ManufactureYear")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Model")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("VehicleType")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("VehicleId");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("CustomerId");
-
-                    b.ToTable("Vehicles");
-                });
-
-            modelBuilder.Entity("Subscription", b =>
+            modelBuilder.Entity("Repositories.Models.Subscription", b =>
                 {
                     b.Property<int>("SubscriptionId")
                         .ValueGeneratedOnAdd()
@@ -728,20 +650,15 @@ namespace Repositories.Migrations
 
                     b.Property<string>("BillingCycle")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Monthly");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("CompanyId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasColumnType("datetime2");
 
-                    b.Property<int>("CustomerId")
+                    b.Property<int?>("CustomerId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("EndDate")
@@ -755,18 +672,13 @@ namespace Repositories.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Active");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("SubscriptionPlanId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
+                        .HasColumnType("datetime2");
 
                     b.HasKey("SubscriptionId");
 
@@ -776,18 +688,133 @@ namespace Repositories.Migrations
 
                     b.HasIndex("SubscriptionPlanId");
 
-                    b.ToTable("Subscription", (string)null);
+                    b.ToTable("Subscriptions");
                 });
 
-            modelBuilder.Entity("Invoice", b =>
+            modelBuilder.Entity("Repositories.Models.SubscriptionPlan", b =>
                 {
-                    b.HasOne("Subscription", "Subscription")
-                        .WithMany("Invoices")
-                        .HasForeignKey("SubscriptionId")
-                        .IsRequired()
-                        .HasConstraintName("FK_Invoice_Subscription");
+                    b.Property<int>("SubscriptionPlanId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
-                    b.Navigation("Subscription");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SubscriptionPlanId"));
+
+                    b.Property<string>("Benefits")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("DiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("FreeIdleMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsForCompany")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PlanName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("PriceMonthly")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PriceYearly")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("SubscriptionPlanId");
+
+                    b.ToTable("SubscriptionPlans");
+                });
+
+            modelBuilder.Entity("Repositories.Models.Vehicle", b =>
+                {
+                    b.Property<int>("VehicleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VehicleId"));
+
+                    b.Property<decimal?>("BatteryCapacity")
+                        .HasColumnType("decimal(10, 2)");
+
+                    b.Property<string>("CarMaker")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("CompanyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ConnectorType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.Property<int?>("CurrentSoc")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("LicensePlate")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("ManufactureYear")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.Property<string>("VehicleType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("VehicleId")
+                        .HasName("PK__Vehicle__476B5492D9D26F86");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.ToTable("Vehicle", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.Booking", b =>
@@ -795,17 +822,20 @@ namespace Repositories.Migrations
                     b.HasOne("Repositories.Models.Customer", "Customer")
                         .WithMany("Bookings")
                         .HasForeignKey("CustomerId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Booking_Customer");
 
                     b.HasOne("Repositories.Models.Port", "Port")
                         .WithMany("Bookings")
                         .HasForeignKey("PortId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Booking_Port");
 
                     b.HasOne("Repositories.Models.Vehicle", "Vehicle")
                         .WithMany("Bookings")
                         .HasForeignKey("VehicleId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Booking_Vehicle");
 
                     b.Navigation("Customer");
 
@@ -819,7 +849,8 @@ namespace Repositories.Migrations
                     b.HasOne("Repositories.Models.Station", "Station")
                         .WithMany("Chargers")
                         .HasForeignKey("StationId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Charger_Station");
 
                     b.Navigation("Station");
                 });
@@ -829,40 +860,37 @@ namespace Repositories.Migrations
                     b.HasOne("Repositories.Models.Booking", "Booking")
                         .WithOne("ChargingSession")
                         .HasForeignKey("Repositories.Models.ChargingSession", "BookingId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Session_Booking");
 
                     b.HasOne("Repositories.Models.Customer", "Customer")
                         .WithMany("ChargingSessions")
                         .HasForeignKey("CustomerId")
-                        .IsRequired();
-
-                    b.HasOne("Invoice", "Invoice")
-                        .WithMany("ChargingSessions")
-                        .HasForeignKey("InvoiceId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("FK_ChargingSession_Invoice");
+                        .IsRequired()
+                        .HasConstraintName("FK_Session_Customer");
 
                     b.HasOne("Repositories.Models.Port", "Port")
                         .WithMany("ChargingSessions")
                         .HasForeignKey("PortId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Session_Port");
 
                     b.HasOne("Repositories.Models.PricingRule", "PricingRule")
                         .WithMany("ChargingSessions")
                         .HasForeignKey("PricingRuleId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_ChargingSession_PricingRule");
 
                     b.HasOne("Repositories.Models.Vehicle", "Vehicle")
                         .WithMany("ChargingSessions")
                         .HasForeignKey("VehicleId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Session_Vehicle");
 
                     b.Navigation("Booking");
 
                     b.Navigation("Customer");
-
-                    b.Navigation("Invoice");
 
                     b.Navigation("Port");
 
@@ -876,32 +904,54 @@ namespace Repositories.Migrations
                     b.HasOne("Repositories.Models.Account", "Account")
                         .WithMany("Customers")
                         .HasForeignKey("AccountId")
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Customer_Account");
 
                     b.HasOne("Repositories.Models.Company", "Company")
                         .WithMany("Customers")
-                        .HasForeignKey("CompanyId");
+                        .HasForeignKey("CompanyId")
+                        .HasConstraintName("FK_Customer_Company");
 
                     b.Navigation("Account");
 
                     b.Navigation("Company");
                 });
 
+            modelBuilder.Entity("Repositories.Models.Invoice", b =>
+                {
+                    b.HasOne("Repositories.Models.ChargingSession", "ChargingSession")
+                        .WithOne("Invoice")
+                        .HasForeignKey("Repositories.Models.Invoice", "ChargingSessionId")
+                        .IsRequired()
+                        .HasConstraintName("FK_Invoice_Session");
+
+                    b.HasOne("Repositories.Models.Subscription", "Subscription")
+                        .WithMany("Invoices")
+                        .HasForeignKey("SubscriptionId");
+
+                    b.Navigation("ChargingSession");
+
+                    b.Navigation("Subscription");
+                });
+
             modelBuilder.Entity("Repositories.Models.Payment", b =>
                 {
                     b.HasOne("Repositories.Models.Booking", "Booking")
                         .WithMany("Payments")
-                        .HasForeignKey("BookingId");
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("FK_Payment_Booking");
 
                     b.HasOne("Repositories.Models.Customer", "Customer")
                         .WithMany("Payments")
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Payment_Customer");
 
-                    b.HasOne("Invoice", "Invoice")
+                    b.HasOne("Repositories.Models.Invoice", "Invoice")
                         .WithMany("Payments")
-                        .HasForeignKey("InvoiceId");
+                        .HasForeignKey("InvoiceId")
+                        .HasConstraintName("FK_Payment_Invoice");
 
                     b.Navigation("Booking");
 
@@ -915,8 +965,8 @@ namespace Repositories.Migrations
                     b.HasOne("Repositories.Models.Charger", "Charger")
                         .WithMany("Ports")
                         .HasForeignKey("ChargerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .IsRequired()
+                        .HasConstraintName("FK_Port_Charger");
 
                     b.Navigation("Charger");
                 });
@@ -928,38 +978,20 @@ namespace Repositories.Migrations
                         .HasForeignKey("StationId");
                 });
 
-            modelBuilder.Entity("Repositories.Models.Vehicle", b =>
+            modelBuilder.Entity("Repositories.Models.Subscription", b =>
                 {
                     b.HasOne("Repositories.Models.Company", "Company")
-                        .WithMany("Vehicles")
+                        .WithMany()
                         .HasForeignKey("CompanyId");
 
                     b.HasOne("Repositories.Models.Customer", "Customer")
-                        .WithMany("Vehicles")
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Company");
-
-                    b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("Subscription", b =>
-                {
-                    b.HasOne("Repositories.Models.Company", "Company")
-                        .WithMany("Subscriptions")
-                        .HasForeignKey("CompanyId");
-
-                    b.HasOne("Repositories.Models.Customer", "Customer")
-                        .WithMany("Subscriptions")
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .WithMany()
+                        .HasForeignKey("CustomerId");
 
                     b.HasOne("Repositories.Models.SubscriptionPlan", "SubscriptionPlan")
                         .WithMany("Subscriptions")
                         .HasForeignKey("SubscriptionPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Company");
@@ -969,11 +1001,22 @@ namespace Repositories.Migrations
                     b.Navigation("SubscriptionPlan");
                 });
 
-            modelBuilder.Entity("Invoice", b =>
+            modelBuilder.Entity("Repositories.Models.Vehicle", b =>
                 {
-                    b.Navigation("ChargingSessions");
+                    b.HasOne("Repositories.Models.Company", "Company")
+                        .WithMany("Vehicles")
+                        .HasForeignKey("CompanyId")
+                        .HasConstraintName("FK_Vehicle_Company");
 
-                    b.Navigation("Payments");
+                    b.HasOne("Repositories.Models.Customer", "Customer")
+                        .WithMany("Vehicles")
+                        .HasForeignKey("CustomerId")
+                        .IsRequired()
+                        .HasConstraintName("FK_Vehicle_Customer");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Customer");
                 });
 
             modelBuilder.Entity("Repositories.Models.Account", b =>
@@ -993,11 +1036,14 @@ namespace Repositories.Migrations
                     b.Navigation("Ports");
                 });
 
+            modelBuilder.Entity("Repositories.Models.ChargingSession", b =>
+                {
+                    b.Navigation("Invoice");
+                });
+
             modelBuilder.Entity("Repositories.Models.Company", b =>
                 {
                     b.Navigation("Customers");
-
-                    b.Navigation("Subscriptions");
 
                     b.Navigation("Vehicles");
                 });
@@ -1010,9 +1056,12 @@ namespace Repositories.Migrations
 
                     b.Navigation("Payments");
 
-                    b.Navigation("Subscriptions");
-
                     b.Navigation("Vehicles");
+                });
+
+            modelBuilder.Entity("Repositories.Models.Invoice", b =>
+                {
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("Repositories.Models.Port", b =>
@@ -1034,6 +1083,11 @@ namespace Repositories.Migrations
                     b.Navigation("PricingRules");
                 });
 
+            modelBuilder.Entity("Repositories.Models.Subscription", b =>
+                {
+                    b.Navigation("Invoices");
+                });
+
             modelBuilder.Entity("Repositories.Models.SubscriptionPlan", b =>
                 {
                     b.Navigation("Subscriptions");
@@ -1044,11 +1098,6 @@ namespace Repositories.Migrations
                     b.Navigation("Bookings");
 
                     b.Navigation("ChargingSessions");
-                });
-
-            modelBuilder.Entity("Subscription", b =>
-                {
-                    b.Navigation("Invoices");
                 });
 #pragma warning restore 612, 618
         }

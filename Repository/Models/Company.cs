@@ -30,4 +30,6 @@ public partial class Company
     public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
 
     public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+    public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+
 }
