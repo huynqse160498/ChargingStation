@@ -35,6 +35,9 @@ public partial class ChargeStationContext : DbContext
 
     public virtual DbSet<Vehicle> Vehicles { get; set; }
     public virtual DbSet<PricingRule> PricingRules { get; set; } // Mới thêm
+    public virtual DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+    public virtual DbSet<Subscription> Subscriptions { get; set; }
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

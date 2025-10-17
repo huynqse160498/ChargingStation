@@ -17,7 +17,16 @@ public partial class Invoice
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public string Status { get; set; }
+    public int? SubscriptionId { get; set; }
+    public int? BillingMonth { get; set; }
+    public int? BillingYear { get; set; }
+    public bool IsMonthlyInvoice { get; set; } = true;
 
     public virtual ChargingSession ChargingSession { get; set; }
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+   
+
+    // Navigation
+    public virtual Subscription Subscription { get; set; }
+
 }
