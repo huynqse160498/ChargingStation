@@ -13,6 +13,7 @@ public partial class ChargingSession
     public int VehicleId { get; set; }
     public int PortId { get; set; }
     public int PricingRuleId { get; set; } // Liên kết tới PricingRule
+    public int? InvoiceId { get; set; } // 🔗 liên kết tới hóa đơn tháng
 
     public int? StartSoc { get; set; }
     public int? EndSoc { get; set; }
@@ -35,4 +36,5 @@ public partial class ChargingSession
     public virtual Port Port { get; set; }
     public virtual Vehicle Vehicle { get; set; }
     public virtual PricingRule PricingRule { get; set; }
+
 }
