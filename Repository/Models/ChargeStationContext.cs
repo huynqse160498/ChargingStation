@@ -42,7 +42,7 @@ namespace Repositories.Models
             modelBuilder.Entity<Port>().ToTable("Port");
             modelBuilder.Entity<Station>().ToTable("Station");
             modelBuilder.Entity<Vehicle>().ToTable("Vehicle");
-            modelBuilder.Entity<PricingRule>().ToTable("PricingRule");
+            modelBuilder.Entity<PricingRule>().ToTable("PricingRules");
             modelBuilder.Entity<SubscriptionPlan>().ToTable("SubscriptionPlan");
             modelBuilder.Entity<Subscription>().ToTable("Subscription");
 

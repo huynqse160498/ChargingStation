@@ -8,7 +8,7 @@ namespace Repositories.Models;
 public partial class ChargingSession
 {
     public int ChargingSessionId { get; set; }
-    public int BookingId { get; set; }
+    public int? BookingId { get; set; }
     public int CustomerId { get; set; }
     public int VehicleId { get; set; }
     public int PortId { get; set; }
