@@ -10,10 +10,16 @@ namespace ChargingStationSystem.Controllers
     public class StationsController : ControllerBase
     {
         private readonly IStationService _service;
-        public StationsController(IStationService service) { _service = service; }
+        private readonly IS3Service _s3Service; // NEW: thêm S3 service
+        public StationsController(IStationService service, IS3Service s3Service)
+        {
+            _service = service;
+            _s3Service = s3Service;
+        }
 
 
-        // GET: /api/stations
+
+        // ======================= [BASIC CRUD] =======================
         [HttpGet]
         public async Task<IActionResult> GetAll()
             => Ok(await _service.GetAllAsync());
@@ -62,6 +68,7 @@ namespace ChargingStationSystem.Controllers
             return ok ? NoContent() : NotFound();
         }
 
+        // ======================= [PAGING + FILTER] =======================
         // GET: /api/stations/paged?stationName=&city=&status=&page=1&pageSize=20
         [HttpGet("paged")]
         public async Task<IActionResult> GetPaged(
@@ -76,6 +83,7 @@ namespace ChargingStationSystem.Controllers
         }
 
 
+        // ======================= [CHANGE STATUS] =======================
         // PATCH: /api/stations/{id}/status
         public class StationChangeStatusRequest { public string Status { get; set; } = string.Empty; }
 
@@ -91,6 +99,28 @@ namespace ChargingStationSystem.Controllers
 
             var ok = await _service.ChangeStatusAsync(id, value);
             return ok ? NoContent() : NotFound();
+        }
+
+
+        // ======================= [UPLOAD IMAGE TO S3] =======================
+        // POST: api/stations/upload
+        // Form-data: file = (chọn ảnh)
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "File rỗng hoặc không hợp lệ." });
+
+            try
+            {
+                // upload vào thư mục "stations" trong bucket
+                var imageUrl = await _s3Service.UploadFileAsync(file, "stations");
+                return Ok(new { imageUrl });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi upload file", error = ex.Message });
+            }
         }
     }
 }
