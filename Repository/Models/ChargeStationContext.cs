@@ -30,12 +30,26 @@ namespace Repositories.Models
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            // 🔥 Map các bảng về đúng tên thật trong SQL
+            modelBuilder.Entity<Account>().ToTable("Account");
+            modelBuilder.Entity<Booking>().ToTable("Booking");
+            modelBuilder.Entity<Charger>().ToTable("Charger");
+            modelBuilder.Entity<ChargingSession>().ToTable("ChargingSession");
+            modelBuilder.Entity<Company>().ToTable("Company");
+            modelBuilder.Entity<Customer>().ToTable("Customer");
+            modelBuilder.Entity<Invoice>().ToTable("Invoice");
+            modelBuilder.Entity<Payment>().ToTable("Payment");
+            modelBuilder.Entity<Port>().ToTable("Port");
+            modelBuilder.Entity<Station>().ToTable("Station");
+            modelBuilder.Entity<Vehicle>().ToTable("Vehicle");
+            modelBuilder.Entity<PricingRule>().ToTable("PricingRule");
+            modelBuilder.Entity<SubscriptionPlan>().ToTable("SubscriptionPlan");
+            modelBuilder.Entity<Subscription>().ToTable("Subscription");
+
             #region Account
             modelBuilder.Entity<Account>(entity =>
             {
                 entity.HasKey(e => e.AccountId);
-                entity.ToTable("Account");
-
                 entity.Property(e => e.UserName).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.PassWord).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Role).HasMaxLength(30);
@@ -50,8 +64,6 @@ namespace Repositories.Models
             modelBuilder.Entity<Booking>(entity =>
             {
                 entity.HasKey(e => e.BookingId);
-                entity.ToTable("Booking");
-
                 entity.Property(e => e.StartTime).HasColumnType("datetime");
                 entity.Property(e => e.EndTime).HasColumnType("datetime");
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
@@ -77,8 +89,6 @@ namespace Repositories.Models
             modelBuilder.Entity<Charger>(entity =>
             {
                 entity.HasKey(e => e.ChargerId);
-                entity.ToTable("Charger");
-
                 entity.Property(e => e.Code).HasMaxLength(50);
                 entity.Property(e => e.Type).HasMaxLength(50);
                 entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Active");
@@ -97,8 +107,6 @@ namespace Repositories.Models
             modelBuilder.Entity<ChargingSession>(entity =>
             {
                 entity.HasKey(e => e.ChargingSessionId);
-                entity.ToTable("ChargingSession");
-
                 entity.Property(e => e.StartedAt).HasColumnType("datetime");
                 entity.Property(e => e.EndedAt).HasColumnType("datetime");
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
@@ -140,8 +148,6 @@ namespace Repositories.Models
             modelBuilder.Entity<Company>(entity =>
             {
                 entity.HasKey(e => e.CompanyId);
-                entity.ToTable("Company");
-
                 entity.Property(e => e.Name).HasMaxLength(200);
                 entity.Property(e => e.Address).HasMaxLength(255);
                 entity.Property(e => e.Phone).HasMaxLength(20);
@@ -158,8 +164,6 @@ namespace Repositories.Models
             modelBuilder.Entity<Customer>(entity =>
             {
                 entity.HasKey(e => e.CustomerId);
-                entity.ToTable("Customer");
-
                 entity.Property(e => e.FullName).HasMaxLength(200);
                 entity.Property(e => e.Phone).HasMaxLength(20);
                 entity.Property(e => e.Address).HasMaxLength(255);
@@ -180,8 +184,6 @@ namespace Repositories.Models
             modelBuilder.Entity<Invoice>(entity =>
             {
                 entity.HasKey(e => e.InvoiceId);
-                entity.ToTable("Invoice");
-
                 entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Unpaid");
                 entity.Property(e => e.Subtotal).HasColumnType("decimal(12,2)");
                 entity.Property(e => e.SubscriptionAdjustment).HasColumnType("decimal(12,2)");
@@ -202,8 +204,6 @@ namespace Repositories.Models
             modelBuilder.Entity<Subscription>(entity =>
             {
                 entity.HasKey(e => e.SubscriptionId);
-                entity.ToTable("Subscription");
-
                 entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Active");
                 entity.Property(e => e.BillingCycle).HasMaxLength(20).HasDefaultValue("Monthly");
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
@@ -228,8 +228,6 @@ namespace Repositories.Models
             modelBuilder.Entity<SubscriptionPlan>(entity =>
             {
                 entity.HasKey(e => e.SubscriptionPlanId);
-                entity.ToTable("SubscriptionPlan");
-
                 entity.Property(e => e.PlanName).HasMaxLength(100);
                 entity.Property(e => e.Category).HasMaxLength(50);
                 entity.Property(e => e.Description).HasMaxLength(500);

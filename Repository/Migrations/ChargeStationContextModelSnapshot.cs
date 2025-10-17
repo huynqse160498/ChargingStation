@@ -470,7 +470,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.Port", b =>
@@ -509,7 +509,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("ChargerId");
 
-                    b.ToTable("Ports");
+                    b.ToTable("Ports", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.PricingRule", b =>
@@ -548,7 +548,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("StationId");
 
-                    b.ToTable("PricingRules");
+                    b.ToTable("PricingRules", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.Station", b =>
@@ -588,7 +588,7 @@ namespace Repositories.Migrations
 
                     b.HasKey("StationId");
 
-                    b.ToTable("Stations");
+                    b.ToTable("Stations", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.SubscriptionPlan", b =>
@@ -712,7 +712,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("Vehicles");
+                    b.ToTable("Vehicles", (string)null);
                 });
 
             modelBuilder.Entity("Subscription", b =>
