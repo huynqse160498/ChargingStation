@@ -22,6 +22,13 @@ namespace Repositories.Interfaces
         Task<List<Charger>> GetPagedAsync(int page, int pageSize,
                              int? stationId, string? code, string? type, string? status,
                              decimal? minPower, decimal? maxPower);
+
+        // NEW: đọc kèm Ports để tính Utilization
+        Task<Charger?> GetByIdWithPortsAsync(int id);        // NEW
+        Task<List<Charger>> GetPagedWithPortsAsync(          // NEW
+            int page, int pageSize, int? stationId = null, string? status = null);
+
+
         Task<bool> UpdateStatusAsync(int id, string status);
 
         Task SaveChangesAsync();

@@ -21,7 +21,7 @@ namespace Repositories.DTOs.Chargers
         public decimal? PowerKw { get; set; }
 
         //[MaxLength(20)]
-        //public string Status { get; set; } = "Active";
+        public string Status { get; set; } = "Online";
 
         public DateTime? InstalledAt { get; set; }
         public string? ImageUrl { get; set; }

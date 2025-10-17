@@ -4,7 +4,6 @@ using Repositories.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Repositories.Implementations
@@ -87,6 +86,33 @@ namespace Repositories.Implementations
             return true;
         }
 
+        // ===== NEW: đọc 1 charger kèm Ports để tính Utilization =====
+        public Task<Charger?> GetByIdWithPortsAsync(int id)
+            => _context.Chargers
+                       .AsNoTracking()
+                       .Include(c => c.Ports)
+                       .FirstOrDefaultAsync(c => c.ChargerId == id);
+
+        // ===== NEW: danh sách charger kèm Ports (phục vụ Utilization/paging) =====
+        public async Task<List<Charger>> GetPagedWithPortsAsync(
+            int page, int pageSize, int? stationId = null, string? status = null)
+        {
+            var q = _context.Chargers
+                            .AsNoTracking()
+                            .Include(c => c.Ports)
+                            .AsQueryable();
+
+            if (stationId.HasValue)
+                q = q.Where(c => c.StationId == stationId.Value);
+
+            if (!string.IsNullOrWhiteSpace(status))
+                q = q.Where(c => c.Status == status);
+
+            return await q.OrderBy(c => c.ChargerId)
+                          .Skip((page - 1) * pageSize)
+                          .Take(pageSize)
+                          .ToListAsync();
+        }
 
         public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
     }
