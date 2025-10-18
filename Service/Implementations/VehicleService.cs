@@ -63,7 +63,8 @@ namespace Services.Implementations
         public async Task<VehicleReadDto> CreateAsync(VehicleCreateDto dto)
         {
             var normalizedPlate = dto.LicensePlate?.Trim().ToUpperInvariant();
-            if (await _repo.ExistsLicenseAsync(normalizedPlate))
+
+            if (await _repo.ExistsLicenseAsync(normalizedPlate ?? string.Empty))
                 throw new InvalidOperationException("Biển số đã tồn tại.");
 
             var v = new Vehicle
@@ -81,8 +82,7 @@ namespace Services.Implementations
                 VehicleType = dto.VehicleType?.Trim(),
 
                 // NEW: mặc định Active (nếu DTO có Status thì chuẩn hoá theo whitelist)
-                Status = NormalizeStatus((dto as dynamic)?.Status),
-
+                Status = NormalizeStatus((dto as dynamic)?.Status), 
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -97,7 +97,8 @@ namespace Services.Implementations
             if (v == null) throw new KeyNotFoundException("Không tìm thấy vehicle.");
 
             var normalizedPlate = dto.LicensePlate?.Trim().ToUpperInvariant();
-            if (await _repo.ExistsLicenseAsync(normalizedPlate, ignoreId: id))
+
+            if (await _repo.ExistsLicenseAsync(normalizedPlate ?? string.Empty, ignoreId: id))
                 throw new InvalidOperationException("Biển số đã tồn tại.");
 
             // (Tuỳ chính sách) Không đổi CustomerId ở update

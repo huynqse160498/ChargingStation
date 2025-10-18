@@ -40,7 +40,10 @@ namespace Repositories.Implementations
         // Giữ tracking để Service có thể update entity
         public async Task<Vehicle> GetByIdAsync(int id)
         {
-            return await _context.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == id);
+            var v = await _context.Vehicles
+                                              .FirstOrDefaultAsync(x => x.VehicleId == id);
+            if (v == null) throw new KeyNotFoundException($"Vehicle {id} not found.");
+            return v;
         }
 
         public async Task AddAsync(Vehicle vehicle)
