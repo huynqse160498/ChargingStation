@@ -19,6 +19,8 @@ namespace Repositories.Interfaces
         Task AddAsync(Port port);
         Task UpdateAsync(Port port);
         Task DeleteAsync(Port port);
+
+
         // Kiểm tra trùng ConnectorType trong cùng 1 Charger
         // (để tránh 1 charger có 2 cổng cùng loại, tuỳ rule)
         Task<bool> ExistsConnectorAsync(int chargerId, string connectorType, int? ignoreId = null);

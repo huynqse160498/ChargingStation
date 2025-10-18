@@ -37,12 +37,13 @@ namespace Services.Implementations
             if (await _repo.ExistsConnectorAsync(dto.ChargerId, dto.ConnectorType))
                 throw new InvalidOperationException("ConnectorType đã tồn tại trên charger này.");
 
+            // NEW: default status = Available
             var entity = new Port
             {
                 ChargerId = dto.ChargerId,
                 ConnectorType = dto.ConnectorType,
                 MaxPowerKw = dto.MaxPowerKw,   // decimal?
-                Status = "Open",
+                Status = "Available",
                 ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
@@ -62,7 +63,7 @@ namespace Services.Implementations
             entity.ChargerId = dto.ChargerId;
             entity.ConnectorType = dto.ConnectorType;
             entity.MaxPowerKw = dto.MaxPowerKw;
-            entity.Status = "Open";
+            entity.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Available" : dto.Status;
             entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
 
@@ -88,10 +89,17 @@ namespace Services.Implementations
             return (list.Select(MapToRead), total);
         }
 
-        // NEW: đổi status
-        public async Task<bool> ChangeStatusAsync(int id, string status)
-            => await _repo.UpdateStatusAsync(id, status);
 
+        // NEW: đổi status 4 trạng thái 
+        public async Task<bool> ChangeStatusAsync(int id, string status)
+
+        {
+            string[] allowed = { "Available", "Reserved", "Occupied", "Disabled" };
+            if (!allowed.Contains(status))
+                throw new ArgumentException("Status không hợp lệ. Dùng: Available / Reserved / Occupied / Disabled.");
+
+            return await _repo.UpdateStatusAsync(id, status);
+        }
 
         private static PortReadDto MapToRead(Port p) => new PortReadDto
         {

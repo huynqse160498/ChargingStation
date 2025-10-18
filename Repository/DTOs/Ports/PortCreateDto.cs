@@ -16,11 +16,10 @@ namespace Repositories.DTOs.Ports
         public string ConnectorType { get; set; } = string.Empty; // CCS/CHAdeMO/Type2/...
 
         public decimal? MaxPowerKw { get; set; }
-
-        //[MaxLength(20)]
-        //public string Status { get; set; } = "Available";
+        public string Status { get; set; } = "Available";
 
         [MaxLength(255)]
         public string? ImageUrl { get; set; }
     }
 }
+
