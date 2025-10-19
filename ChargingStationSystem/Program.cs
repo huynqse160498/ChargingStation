@@ -25,7 +25,8 @@ namespace ChargingStationSystem
                 options.AddPolicy("AllowFrontend",
                     policy =>
                     {
-                        policy.WithOrigins("http://localhost:5173") // domain FE
+                        policy.WithOrigins("http://localhost:5173",
+                              "https://localhost:5173") // domain FE
                               .AllowAnyHeader()
                               .AllowAnyMethod()
                               .AllowCredentials(); // cho phép gửi cookie / token
