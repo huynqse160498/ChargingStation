@@ -18,6 +18,12 @@ namespace Services.Implementations
             _repo = repo;
         }
 
+        // NEW: whitelist 2 trạng thái
+        private const string OPEN = "Open";
+        private const string CLOSED = "Closed";
+        private static string Normalize(string? s) => s == CLOSED ? CLOSED : OPEN; // NEW
+
+
         public async Task<IEnumerable<StationReadDto>> GetAllAsync()
         {
             var list = await _repo.GetAllAsync();
@@ -43,7 +49,7 @@ namespace Services.Implementations
                 City = dto.City,
                 Latitude = dto.Latitude,
                 Longitude = dto.Longitude,
-                Status = "Open",
+                Status = Normalize(dto.Status),
                 ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
@@ -65,7 +71,7 @@ namespace Services.Implementations
             entity.City = dto.City;
             entity.Latitude = dto.Latitude;
             entity.Longitude = dto.Longitude;
-            entity.Status = "Open";
+            entity.Status = string.IsNullOrWhiteSpace(dto.Status) ? entity.Status : Normalize(dto.Status);
             entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
 
@@ -96,7 +102,7 @@ namespace Services.Implementations
 
         // NEW: đổi status
         public Task<bool> ChangeStatusAsync(int id, string status)
-            => _repo.UpdateStatusAsync(id, status);
+            => _repo.UpdateStatusAsync(id, Normalize(status));
 
         // Map entity -> DTO
         private static StationReadDto MapToRead(Station s) => new StationReadDto
@@ -107,7 +113,7 @@ namespace Services.Implementations
             City = s.City,
             Latitude = s.Latitude,
             Longitude = s.Longitude,
-            Status = s.Status,
+            Status = Normalize(s.Status),
             ImageUrl = s.ImageUrl
         };
     }

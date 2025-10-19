@@ -14,11 +14,15 @@ namespace Repositories.Implementations
         private readonly ChargeStationContext _context;
         public StationRepository(ChargeStationContext context) { _context = context; }
 
+        // ======================= [CRUD CƠ BẢN] =======================
+
         public async Task<List<Station>> GetAllAsync()
             => await _context.Stations.AsNoTracking().ToListAsync();
 
         public async Task<Station?> GetByIdAsync(int id)
-            => await _context.Stations.FirstOrDefaultAsync(s => s.StationId == id);
+            => await _context.Stations
+                             .AsNoTracking()
+                             .FirstOrDefaultAsync(s => s.StationId == id);
 
         public async Task AddAsync(Station station)
         {
@@ -38,25 +42,37 @@ namespace Repositories.Implementations
             await _context.SaveChangesAsync();
         }
 
+        // ======================= [CHECK DUPLICATE] =======================
+
         public async Task<bool> ExistsNameAsync(string stationName, int? ignoreId = null)
         {
             var q = _context.Stations.AsQueryable()
                                      .Where(s => s.StationName == stationName);
-            if (ignoreId.HasValue) q = q.Where(s => s.StationId != ignoreId.Value);
+            if (ignoreId.HasValue)
+                q = q.Where(s => s.StationId != ignoreId.Value);
+
             return await q.AnyAsync();
         }
 
-        // ===== NEW: helpers =====
-        private static IQueryable<Station> ApplyFilters(IQueryable<Station> q, string? stationName, string? city, string? status)
+        // ======================= [FILTER + PAGING] =======================
+        private static IQueryable<Station> ApplyFilters(
+            IQueryable<Station> q, string? stationName, string? city, string? status)
         {
             if (!string.IsNullOrWhiteSpace(stationName))
                 q = q.Where(s => s.StationName.Contains(stationName));
+
             if (!string.IsNullOrWhiteSpace(city))
                 q = q.Where(s => s.City!.Contains(city));
+
             if (!string.IsNullOrWhiteSpace(status))
-                q = q.Where(s => s.Status == status);
+            {
+                var s = status.Trim();
+                if (s == "Open" || s == "Closed")
+                    q = q.Where(st => st.Status == s);
+            }
             return q;
         }
+
 
         public async Task<int> CountAsync(string? stationName, string? city, string? status)
         {
@@ -73,12 +89,17 @@ namespace Repositories.Implementations
                           .ToListAsync();
         }
 
+        // ======================= [UPDATE STATUS] =======================
         public async Task<bool> UpdateStatusAsync(int id, string status)
         {
             var entity = await _context.Stations.FirstOrDefaultAsync(s => s.StationId == id);
             if (entity == null) return false;
+
+            // NEW: chỉ cho phép "Open" hoặc "Closed"
             entity.Status = status;
             entity.UpdatedAt = DateTime.UtcNow;
+
+
             await _context.SaveChangesAsync();
             return true;
         }
