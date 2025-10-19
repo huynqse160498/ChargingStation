@@ -10,13 +10,16 @@ namespace Services.Interfaces
     public interface IChargerService
     {
         Task<IEnumerable<ChargerReadDto>> GetAllAsync();
+
         Task<ChargerReadDto> GetByIdAsync(int id);
+
         Task<ChargerReadDto> CreateAsync(ChargerCreateDto dto);
+
         Task<bool> UpdateAsync(int id, ChargerUpdateDto dto);
+
         Task<bool> DeleteAsync(int id);
     
 
-      // NEW
         Task<(IEnumerable<ChargerReadDto> Items, int Total)> GetPagedAsync(
             int page, int pageSize,
             int? stationId, string? code, string? type, string? status,
