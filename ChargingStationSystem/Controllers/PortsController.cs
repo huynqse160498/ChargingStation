@@ -12,17 +12,34 @@ namespace ChargingStationSystem.Controllers
         private readonly IPortService _service;
         public PortsController(IPortService service) { _service = service; }
 
+
+        // ======================= [BASIC CRUD] =======================
+
+        // GET: api/ports
+        // Lấy toàn bộ danh sách port (ít dùng, chủ yếu cho test hoặc admin)
+
         [HttpGet]
         public async Task<IActionResult> GetAll()
             => Ok(await _service.GetAllAsync());
+        // GET: api/ports/{id}
+        // Lấy port theo Id
+
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id)
         {
-            try { return Ok(await _service.GetByIdAsync(id)); }
-            catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+            try
+            {
+                return Ok(await _service.GetByIdAsync(id));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
 
+        // POST: api/ports
+        // Tạo port mới – mặc định Status = "Available"
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] PortCreateDto dto)
         {
@@ -34,6 +51,8 @@ namespace ChargingStationSystem.Controllers
             catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
         }
 
+        // PUT: api/ports/{id}
+        // Cập nhật thông tin port (giữ nguyên status hoặc cập nhật nếu gửi vào)
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] PortUpdateDto dto)
         {
@@ -42,9 +61,14 @@ namespace ChargingStationSystem.Controllers
                 var ok = await _service.UpdateAsync(id, dto);
                 return ok ? NoContent() : NotFound();
             }
-            catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
+        // DELETE: api/ports/{id}
+        // Xóa port theo Id
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -52,10 +76,17 @@ namespace ChargingStationSystem.Controllers
             return ok ? NoContent() : NotFound();
         }
 
-        // NEW: GET /api/ports/paged?chargerId=&status=&page=1&pageSize=20
+        // ======================= [PAGING + FILTER] =======================
+
+        // GET: api/ports/paged?chargerId=&status=&page=1&pageSize=20
+        // Lấy danh sách port có phân trang và filter theo charger/status
         [HttpGet("paged")]
-        public async Task<IActionResult> GetPaged([FromQuery] int page = 1, [FromQuery] int pageSize = 20,
-                                                  [FromQuery] int? chargerId = null, [FromQuery] string? status = null)
+
+        public async Task<IActionResult> GetPaged(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] int? chargerId = null,
+            [FromQuery] string? status = null)
         {
             var (items, total) = await _service.GetPagedAsync(page, pageSize, chargerId, status);
             return Ok(new
@@ -67,7 +98,11 @@ namespace ChargingStationSystem.Controllers
             });
         }
 
-        // NEW: PATCH /api/ports/{id}/status
+        // ======================= [CHANGE STATUS] =======================
+
+        // Dùng khi staff muốn đổi trạng thái port:
+        // PATCH: api/ports/{id}/status
+        // Body: { "status": "Reserved" }
         public class ChangeStatusRequest { public string Status { get; set; } = string.Empty; }
 
         [HttpPatch("{id:int}/status")]

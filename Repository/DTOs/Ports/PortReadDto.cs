@@ -12,7 +12,7 @@ namespace Repositories.DTOs.Ports
         public int ChargerId { get; set; }
         public string ConnectorType { get; set; } = string.Empty;
         public decimal? MaxPowerKw { get; set; }
-        public string Status { get; set; } = "Available";
+        public string Status { get; set; } = "Avaiable";
         public string? ImageUrl { get; set; }
     }
 }
