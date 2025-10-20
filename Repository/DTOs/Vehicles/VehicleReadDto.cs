@@ -27,6 +27,6 @@ namespace Repositories.DTOs.Vehicles
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
-        public string Status { get; set; } // bỏ default để map đúng "Open" //NEW
+        public string Status { get; set; } = "Active"; // Active | Inactive | Blacklisted | Retired
     }
 }

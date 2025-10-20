@@ -15,7 +15,7 @@ namespace Repositories.Interfaces
         // Lấy theo ID
         Task<Vehicle> GetByIdAsync(int id);
 
-        // CRUD cơ bản
+        // CRUD cơ bản  
         Task AddAsync(Vehicle vehicle);
         Task UpdateAsync(Vehicle vehicle);
         Task DeleteAsync(Vehicle vehicle);
