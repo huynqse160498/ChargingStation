@@ -1,9 +1,11 @@
-﻿using Repositories.DTOs.Chargers;
+﻿using Microsoft.AspNetCore.Http;
+using Repositories.DTOs.Chargers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 
 namespace Services.Interfaces
 {
@@ -26,5 +28,8 @@ namespace Services.Interfaces
             decimal? minPower, decimal? maxPower);
 
         Task<bool> ChangeStatusAsync(int id, string status);
+
+        // ======================= [IMAGE UPLOAD] =======================
+        Task<ChargerReadDto> UploadImageAsync(int id, IFormFile file); // NEW
     }
 }

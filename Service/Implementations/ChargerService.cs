@@ -1,4 +1,5 @@
-﻿using Repositories.DTOs.Chargers;
+﻿using Microsoft.AspNetCore.Http;
+using Repositories.DTOs.Chargers;
 using Repositories.Interfaces;
 using Repositories.Models;
 using Services.Interfaces;
@@ -12,12 +13,14 @@ namespace Services.Implementations
     public class ChargerService : IChargerService
     {
         private readonly IChargerRepository _repo;
+        private readonly IS3Service _s3;
+
 
         // Status hợp lệ
         private const string ONLINE = "Online";
         private const string OFFLINE = "Offline";
         private const string OUT_OF_ORDER = "OutOfOrder";
-
+            
         private static bool IsValidStatus(string? s)
             => s == ONLINE || s == OFFLINE || s == OUT_OF_ORDER;
 
@@ -25,9 +28,10 @@ namespace Services.Implementations
         private static string NormalizeStatus(string? s)
             => s == OFFLINE ? OFFLINE : (s == OUT_OF_ORDER ? OUT_OF_ORDER : ONLINE);
 
-        public ChargerService(IChargerRepository repo)
+        public ChargerService(IChargerRepository repo, IS3Service s3) // UPDATED
         {
             _repo = repo;
+            _s3 = s3; // NEW
         }
 
         // =============== BASIC CRUD ===============
@@ -176,5 +180,32 @@ namespace Services.Implementations
             AvailablePorts = c.Ports?.Count(p => p.Status == "Available") ?? 0,
             DisabledPorts = c.Ports?.Count(p => p.Status == "Disabled") ?? 0
         };
+
+        // ======================= [IMAGE UPLOAD] =======================
+        public async Task<ChargerReadDto> UploadImageAsync(int id, IFormFile file) // NEW
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("File rỗng.");
+
+            var ct = (file.ContentType ?? "").ToLower();
+            if (!ct.StartsWith("image/"))
+                throw new ArgumentException("Chỉ chấp nhận image/*");
+
+            var entity = await _repo.GetByIdAsync(id)
+                         ?? throw new KeyNotFoundException("Không tìm thấy charger.");
+
+            // upload lên S3 theo prefix chargers/{id}
+            var url = await _s3.UploadFileAsync(file, $"chargers/{id}");
+
+            // (tuỳ chọn) nếu muốn xoá ảnh cũ:
+            // if (!string.IsNullOrEmpty(entity.ImageUrl)) await _s3.DeleteFileAsync(entity.ImageUrl);
+
+            entity.ImageUrl = url;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _repo.UpdateAsync(entity);
+
+            return MapToRead(entity); // dùng mapper đang có
+        }
     }
 }
+
