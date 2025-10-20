@@ -25,8 +25,8 @@ namespace Repositories.DTOs
             public DateTime? EndTime { get; set; }
 
             [Required(ErrorMessage = "Trạng thái không được bỏ trống")]
-            [RegularExpression("Pending|Confirmed|Cancelled|Completed",
-                ErrorMessage = "Trạng thái chỉ được là Pending, Confirmed, Cancelled hoặc Completed")]
+            [RegularExpression("Pending",
+                ErrorMessage = "Trạng thái chỉ được là Pending")]
             public string Status { get; set; } = "Pending";
         }
 

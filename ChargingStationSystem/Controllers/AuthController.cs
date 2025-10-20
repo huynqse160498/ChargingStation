@@ -20,11 +20,21 @@ namespace ChargingStationSystem.Controllers
         }
 
         // ------------------- Đăng ký -------------------
-        [HttpPost("register")]
+        // Đăng ký KH cá nhân (giữ như hiện tại)
+        [HttpPost("register-customer")]
         [AllowAnonymous]
-        public async Task<IActionResult> Register([FromBody] RegisterDto dto)
+        public async Task<IActionResult> RegisterCustomer([FromBody] RegisterDto dto)
         {
             var result = await _authService.RegisterAsync(dto);
+            return Ok(new { message = result });
+        }
+
+        // ⬇️ Thêm mới: Đăng ký doanh nghiệp
+        [HttpPost("register-company")]
+        [AllowAnonymous]
+        public async Task<IActionResult> RegisterCompany([FromBody] RegisterCompanyDto dto)
+        {
+            var result = await _authService.RegisterCompanyAsync(dto);
             return Ok(new { message = result });
         }
 
@@ -102,5 +112,23 @@ namespace ChargingStationSystem.Controllers
                 return NotFound(new { message = ex.Message });
             }
         }
+        [HttpPut("update-customer")]
+        public async Task<IActionResult> UpdateCustomer([FromBody] UpdateCustomerDto dto)
+             => Ok(new { message = await _authService.UpdateCustomerAsync(dto) ? "Cập nhật khách hàng thành công" : "Thất bại" });
+
+        [HttpPut("update-company")]
+        public async Task<IActionResult> UpdateCompany([FromBody] UpdateCompanyDto dto)
+            => Ok(new { message = await _authService.UpdateCompanyAsync(dto) ? "Cập nhật công ty thành công" : "Thất bại" });
+
+        [HttpPost("upload-avatar/{accountId}")]
+        public async Task<IActionResult> UploadAvatar(int accountId, IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Vui lòng chọn ảnh để tải lên" });
+
+            var imageUrl = await _authService.UpdateAvatarAsync(accountId, file);
+            return Ok(new { message = "Tải ảnh đại diện thành công", avatarUrl = imageUrl });
+        }
+
     }
 }

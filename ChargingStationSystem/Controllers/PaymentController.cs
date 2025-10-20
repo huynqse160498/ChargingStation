@@ -49,7 +49,7 @@ namespace WebAPI.Controllers
         {
             // 🟢 URL Frontend (đặt cứng hoặc lấy từ appsettings.json)
             var successUrl = _config["VnPay:FrontEndSuccessUrl"] ?? "http://localhost:5173/payment/success";
-            var failUrl = _config["VnPay:FrontEndFailUrl"] ?? "http://localhost:5173/payment/failluer";
+            var failUrl = _config["VnPay:FrontEndFailUrl"] ?? "http://localhost:5173/payment/failure";
 
             try
             {

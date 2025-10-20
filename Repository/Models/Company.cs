@@ -27,6 +27,9 @@ public partial class Company
 
     public string ImageUrl { get; set; }
 
+    // 🔗 Liên kết 1-1 với Account
+    public int AccountId { get; set; }
+    public virtual Account Account { get; set; }
     public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
 
     public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();

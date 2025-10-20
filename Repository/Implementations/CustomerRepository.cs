@@ -16,37 +16,58 @@ namespace Repositories.Implementations
             _context = context;
         }
 
-        public async Task<Customer> GetByIdAsync(int id)
+        // 🔹 Lấy danh sách tất cả khách hàng (bao gồm Account và Company)
+        public async Task<IEnumerable<Customer>> GetAllAsync()
         {
             return await _context.Customers
+                .Include(c => c.Account)
+                .Include(c => c.Company)
+                .ToListAsync();
+        }
+
+        // 🔹 Lấy khách hàng theo ID
+        public async Task<Customer?> GetByIdAsync(int id)
+        {
+            return await _context.Customers
+                .Include(c => c.Account)
+                .Include(c => c.Company)
                 .FirstOrDefaultAsync(c => c.CustomerId == id);
         }
 
-        public async Task<IEnumerable<Customer>> GetAllAsync()
+        // 🔹 Lấy khách hàng theo AccountId
+        public async Task<Customer?> GetByAccountIdAsync(int accountId)
         {
-            return await _context.Customers.ToListAsync();
+            return await _context.Customers
+                .Include(c => c.Account)
+                .Include(c => c.Company)
+                .FirstOrDefaultAsync(c => c.AccountId == accountId);
         }
 
-        public void Add(Customer customer)
+        // 🔹 Thêm mới khách hàng
+        public async Task AddAsync(Customer customer)
         {
-            _context.Customers.Add(customer);
-            _context.SaveChanges();
+            await _context.Customers.AddAsync(customer);
+            await _context.SaveChangesAsync();
         }
 
-        public void Update(Customer customer)
+        // 🔹 Cập nhật khách hàng
+        public async Task UpdateAsync(Customer customer)
         {
             _context.Customers.Update(customer);
-            _context.SaveChanges();
+            await _context.SaveChangesAsync();
         }
 
-        public void Delete(int id)
+        // 🔹 Xóa khách hàng
+        public async Task DeleteAsync(Customer customer)
         {
-            var c = _context.Customers.FirstOrDefault(x => x.CustomerId == id);
-            if (c != null)
-            {
-                _context.Customers.Remove(c);
-                _context.SaveChanges();
-            }
+            _context.Customers.Remove(customer);
+            await _context.SaveChangesAsync();
+        }
+
+        // 🔹 Lưu thay đổi thủ công (nếu cần)
+        public async Task SaveChangesAsync()
+        {
+            await _context.SaveChangesAsync();
         }
     }
 }

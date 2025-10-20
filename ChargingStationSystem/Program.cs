@@ -25,7 +25,8 @@ namespace ChargingStationSystem
                 options.AddPolicy("AllowFrontend",
                     policy =>
                     {
-                        policy.WithOrigins("http://localhost:5173") // domain FE
+                        policy.WithOrigins("http://localhost:5173",
+                              "https://localhost:5173") // domain FE
                               .AllowAnyHeader()
                               .AllowAnyMethod()
                               .AllowCredentials(); // cho phép gửi cookie / token
@@ -69,11 +70,7 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IVnPayService, VnPayService>();
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
-            builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
-            builder.Services.AddScoped<IInvoiceService, InvoiceService>();
-            builder.Services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
-            builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
-            builder.Services.AddScoped<IS3Service, S3Service>();
+            builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
             builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService

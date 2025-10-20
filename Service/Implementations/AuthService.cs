@@ -1,43 +1,49 @@
-﻿using Repositories.DTOs;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
+using Repositories.DTOs;
 using Repositories.Interfaces;
 using Repositories.Models;
 using Services.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Identity;
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
-using Microsoft.Extensions.Configuration;
-using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 
 namespace Services.Implementations
 {
     public class AuthService : IAuthService
     {
         private readonly IAccountRepository _accountRepository;
+        private readonly ICompanyRepository _companyRepository;
+        private readonly IS3Service _s3Service;
         private readonly ChargeStationContext _context;
-        private readonly IPasswordHasher<Account> _passwordHasher;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
+        private readonly IPasswordHasher<Account> _passwordHasher;
 
         public AuthService(
             IAccountRepository accountRepository,
+            ICompanyRepository companyRepository,
+            IS3Service s3Service,
             ChargeStationContext context,
             IHttpContextAccessor httpContextAccessor,
             IConfiguration configuration)
         {
             _accountRepository = accountRepository;
+            _companyRepository = companyRepository;
+            _s3Service = s3Service;
             _context = context;
-            _passwordHasher = new PasswordHasher<Account>();
             _httpContextAccessor = httpContextAccessor;
             _configuration = configuration;
+            _passwordHasher = new PasswordHasher<Account>();
         }
 
-        // ------------------- Đăng ký -------------------
+        // ------------------- Đăng ký Customer -------------------
         public async Task<string> RegisterAsync(RegisterDto dto)
         {
             var existingUser = await _accountRepository.GetByUserNameAsync(dto.UserName);
@@ -52,13 +58,10 @@ namespace Services.Implementations
                 Status = "Active"
             };
 
-            // Mã hóa mật khẩu
             account.PassWord = _passwordHasher.HashPassword(account, dto.Password);
-
-            // Lưu tài khoản
             await _accountRepository.AddAsync(account);
+            await _context.SaveChangesAsync();
 
-            // 🔗 Tạo Customer tương ứng (1-1)
             var customer = new Customer
             {
                 AccountId = account.AccountId,
@@ -72,6 +75,48 @@ namespace Services.Implementations
             await _context.SaveChangesAsync();
 
             return "Đăng ký thành công";
+        }
+
+        // ------------------- Đăng ký Company -------------------
+        public async Task<string> RegisterCompanyAsync(RegisterCompanyDto dto)
+        {
+            var existingUser = await _accountRepository.GetByUserNameAsync(dto.UserName);
+            if (existingUser != null)
+                return "Tên đăng nhập đã tồn tại";
+
+            var existingCompany = await _companyRepository.GetByTaxCodeAsync(dto.TaxCode);
+            if (existingCompany != null)
+                return "Mã số thuế đã được sử dụng";
+
+            var account = new Account
+            {
+                UserName = dto.UserName,
+                Role = "Company",
+                CreatedAt = DateTime.Now,
+                Status = "Active"
+            };
+            account.PassWord = _passwordHasher.HashPassword(account, dto.Password);
+
+            await _accountRepository.AddAsync(account);
+            await _context.SaveChangesAsync();
+
+            var company = new Company
+            {
+                AccountId = account.AccountId,
+                Name = dto.CompanyName,
+                TaxCode = dto.TaxCode,
+                Email = dto.CompanyEmail,
+                Phone = dto.CompanyPhone,
+                Address = dto.Address,
+                ImageUrl = dto.ImageUrl,
+                Status = "Active",
+                CreatedAt = DateTime.Now
+            };
+
+            await _companyRepository.AddAsync(company);
+            await _context.SaveChangesAsync();
+
+            return "Đăng ký doanh nghiệp thành công";
         }
 
         // ------------------- Đăng nhập -------------------
@@ -88,7 +133,6 @@ namespace Services.Implementations
             if (!user.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
                 return new { Success = false, Message = "Tài khoản đã bị khóa" };
 
-            // 🔐 Tạo JWT Token
             var claims = new[]
             {
                 new Claim(ClaimTypes.NameIdentifier, user.AccountId.ToString()),
@@ -108,72 +152,107 @@ namespace Services.Implementations
                 signingCredentials: creds
             );
 
-            string tokenString = new JwtSecurityTokenHandler().WriteToken(token);
-
             return new
             {
                 Success = true,
                 Message = "Đăng nhập thành công",
-                Token = tokenString
+                Token = new JwtSecurityTokenHandler().WriteToken(token)
             };
         }
 
-        // ------------------- Lấy tất cả tài khoản -------------------
-        public async Task<IEnumerable<Account>> GetAllAsync()
-        {
-            return await _accountRepository.GetAllAsync();
-        }
+        // ------------------- CRUD tài khoản -------------------
+        public async Task<IEnumerable<Account>> GetAllAsync() => await _accountRepository.GetAllAsync();
 
-        // ------------------- Lấy tài khoản theo ID -------------------
         public async Task<Account> GetByIdAsync(int id)
         {
             var account = await _accountRepository.GetByIdAsync(id);
-            if (account == null)
-                throw new KeyNotFoundException("Không tìm thấy tài khoản.");
+            if (account == null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
             return account;
         }
 
-        // ------------------- Xóa tài khoản -------------------
         public async Task<bool> DeleteAsync(int id)
         {
             var account = await _accountRepository.GetByIdAsync(id);
-            if (account == null)
-                throw new KeyNotFoundException("Không tìm thấy tài khoản.");
-
+            if (account == null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
             await _accountRepository.DeleteAsync(account);
             return true;
         }
 
-        // ------------------- Đổi vai trò (chỉ Admin) -------------------
         public async Task<bool> ChangeRoleAsync(int accountId, string newRole)
         {
             var currentUser = _httpContextAccessor.HttpContext?.User;
-            if (currentUser == null)
-                throw new UnauthorizedAccessException("Người dùng chưa đăng nhập.");
+            if (currentUser == null) throw new UnauthorizedAccessException("Người dùng chưa đăng nhập.");
 
             var currentRole = currentUser.FindFirst(ClaimTypes.Role)?.Value;
             if (currentRole == null || !currentRole.Equals("Admin", StringComparison.OrdinalIgnoreCase))
                 throw new UnauthorizedAccessException("Chỉ Admin mới có quyền đổi vai trò.");
 
             var account = await _accountRepository.GetByIdAsync(accountId);
-            if (account == null)
-                throw new KeyNotFoundException("Không tìm thấy tài khoản.");
+            if (account == null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
 
             account.Role = newRole;
             await _accountRepository.UpdateAsync(account);
             return true;
         }
 
-        // ------------------- Đổi trạng thái tài khoản -------------------
         public async Task<bool> ChangeStatusAsync(int accountId, string newStatus)
         {
             var account = await _accountRepository.GetByIdAsync(accountId);
-            if (account == null)
-                throw new KeyNotFoundException("Không tìm thấy tài khoản.");
+            if (account == null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
 
             account.Status = newStatus;
             await _accountRepository.UpdateAsync(account);
             return true;
+        }
+
+        // ------------------- Cập nhật Customer -------------------
+        public async Task<bool> UpdateCustomerAsync(UpdateCustomerDto dto)
+        {
+            var customer = await _context.Customers.Include(c => c.Account).FirstOrDefaultAsync(c => c.CustomerId == dto.CustomerId);
+            if (customer == null) throw new KeyNotFoundException("Không tìm thấy khách hàng.");
+
+            customer.FullName = dto.FullName ?? customer.FullName;
+            customer.Phone = dto.Phone ?? customer.Phone;
+            customer.Address = dto.Address ?? customer.Address;
+            customer.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ------------------- Cập nhật Company -------------------
+        public async Task<bool> UpdateCompanyAsync(UpdateCompanyDto dto)
+        {
+            var company = await _context.Companies.FindAsync(dto.CompanyId);
+            if (company == null) throw new KeyNotFoundException("Không tìm thấy công ty.");
+
+            company.Name = dto.Name ?? company.Name;
+            company.TaxCode = dto.TaxCode ?? company.TaxCode;
+            company.Email = dto.Email ?? company.Email;
+            company.Phone = dto.Phone ?? company.Phone;
+            company.Address = dto.Address ?? company.Address;
+            company.ImageUrl = dto.ImageUrl ?? company.ImageUrl;
+            company.UpdatedAt = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ------------------- Upload avatar S3 -------------------
+        public async Task<string> UpdateAvatarAsync(int accountId, IFormFile file)
+        {
+            var account = await _accountRepository.GetByIdAsync(accountId);
+            if (account == null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
+
+            if (!string.IsNullOrEmpty(account.AvatarUrl))
+                await _s3Service.DeleteFileAsync(account.AvatarUrl);
+
+            var imageUrl = await _s3Service.UploadFileAsync(file, "avatars");
+            account.AvatarUrl = imageUrl;
+            account.UpdatedAt = DateTime.Now;
+            await _accountRepository.UpdateAsync(account);
+
+            return imageUrl;
         }
     }
 }
