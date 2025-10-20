@@ -3,7 +3,8 @@
     public class PricingRuleQueryDto
     {
         // Bộ lọc
-        public string? VehicleType { get; set; }
+        public string? ChargerType { get; set; }
+        public decimal? PowerKw { get; set; }
         public string? TimeRange { get; set; }
         public string? Status { get; set; }
         public string? Search { get; set; }

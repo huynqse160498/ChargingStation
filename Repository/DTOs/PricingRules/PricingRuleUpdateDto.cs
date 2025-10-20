@@ -7,10 +7,13 @@ namespace Repositories.DTOs.PricingRules
         [Required]
         public int PricingRuleId { get; set; }
 
-        [Required]
-        public string VehicleType { get; set; }
+        [Required(ErrorMessage = "Loại trụ không được để trống")]
+        public string ChargerType { get; set; }
 
-        [Required]
+        [Range(0, double.MaxValue, ErrorMessage = "Công suất phải lớn hơn 0")]
+        public decimal PowerKw { get; set; }
+
+        [Required(ErrorMessage = "Khung giờ không được để trống")]
         public string TimeRange { get; set; }
 
         [Range(0, double.MaxValue)]
@@ -20,6 +23,7 @@ namespace Repositories.DTOs.PricingRules
         public decimal IdleFeePerMin { get; set; }
 
         [Required]
+        [RegularExpression("^(Active|Inactive)$", ErrorMessage = "Trạng thái chỉ có thể là Active hoặc Inactive")]
         public string Status { get; set; }
     }
 }

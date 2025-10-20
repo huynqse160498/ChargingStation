@@ -3,7 +3,8 @@
     public class PricingRuleDetailDto
     {
         public int PricingRuleId { get; set; }
-        public string VehicleType { get; set; }
+        public string ChargerType { get; set; }
+        public decimal PowerKw { get; set; }
         public string TimeRange { get; set; }
         public decimal PricePerKwh { get; set; }
         public decimal IdleFeePerMin { get; set; }

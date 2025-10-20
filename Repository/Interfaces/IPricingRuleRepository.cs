@@ -8,10 +8,12 @@ namespace Repositories.Interfaces
     {
         IQueryable<PricingRule> GetAll();
         Task<PricingRule?> GetByIdAsync(int id);
-        Task<PricingRule?> GetActiveRuleAsync(string vehicleType, string timeRange);
-        Task AddAsync(PricingRule entity);
-        Task UpdateAsync(PricingRule entity);
-        Task DeleteAsync(PricingRule entity);
+        Task AddAsync(PricingRule rule);
+        Task UpdateAsync(PricingRule rule);
+        Task DeleteAsync(PricingRule rule);
         Task SaveAsync();
+
+        // 🔹 Thêm hàm lấy quy tắc giá theo loại trụ, công suất và khung giờ
+        Task<PricingRule?> GetActiveRuleAsync(string chargerType, decimal powerKw, string timeRange);
     }
 }

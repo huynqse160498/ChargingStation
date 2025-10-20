@@ -24,8 +24,11 @@ namespace Services.Implementations
         {
             var query = _repo.GetAll();
 
-            if (!string.IsNullOrEmpty(q.VehicleType))
-                query = query.Where(x => x.VehicleType == q.VehicleType);
+            if (!string.IsNullOrEmpty(q.ChargerType))
+                query = query.Where(x => x.ChargerType == q.ChargerType);
+
+            if (q.PowerKw.HasValue)
+                query = query.Where(x => x.PowerKw == q.PowerKw.Value);
 
             if (!string.IsNullOrEmpty(q.TimeRange))
                 query = query.Where(x => x.TimeRange == q.TimeRange);
@@ -34,7 +37,7 @@ namespace Services.Implementations
                 query = query.Where(x => x.Status == q.Status);
 
             if (!string.IsNullOrEmpty(q.Search))
-                query = query.Where(x => x.VehicleType.Contains(q.Search) || x.TimeRange.Contains(q.Search));
+                query = query.Where(x => x.ChargerType.Contains(q.Search) || x.TimeRange.Contains(q.Search));
 
             bool desc = q.SortDir?.ToLower() == "desc";
             query = (q.SortBy ?? "CreatedAt").ToLower() switch
@@ -49,7 +52,8 @@ namespace Services.Implementations
                                    .Select(x => new PricingRuleListItemDto
                                    {
                                        PricingRuleId = x.PricingRuleId,
-                                       VehicleType = x.VehicleType,
+                                       ChargerType = x.ChargerType,
+                                       PowerKw = x.PowerKw,
                                        TimeRange = x.TimeRange,
                                        PricePerKwh = x.PricePerKwh,
                                        IdleFeePerMin = x.IdleFeePerMin,
@@ -77,7 +81,8 @@ namespace Services.Implementations
             return new PricingRuleDetailDto
             {
                 PricingRuleId = rule.PricingRuleId,
-                VehicleType = rule.VehicleType,
+                ChargerType = rule.ChargerType,
+                PowerKw = rule.PowerKw,
                 TimeRange = rule.TimeRange,
                 PricePerKwh = rule.PricePerKwh,
                 IdleFeePerMin = rule.IdleFeePerMin,
@@ -91,16 +96,18 @@ namespace Services.Implementations
         public async Task<string> CreateAsync(PricingRuleCreateDto dto)
         {
             var exists = await _repo.GetAll()
-                .AnyAsync(x => x.VehicleType == dto.VehicleType &&
+                .AnyAsync(x => x.ChargerType == dto.ChargerType &&
+                               x.PowerKw == dto.PowerKw &&
                                x.TimeRange == dto.TimeRange &&
                                x.Status == "Active");
 
             if (exists)
-                return "Đã tồn tại quy tắc giá đang hoạt động cho loại xe và khung giờ này.";
+                return "Đã tồn tại quy tắc giá đang hoạt động cho loại trụ và công suất này.";
 
             var entity = new PricingRule
             {
-                VehicleType = dto.VehicleType,
+                ChargerType = dto.ChargerType,
+                PowerKw = dto.PowerKw,
                 TimeRange = dto.TimeRange,
                 PricePerKwh = dto.PricePerKwh,
                 IdleFeePerMin = dto.IdleFeePerMin,
@@ -122,7 +129,8 @@ namespace Services.Implementations
             if (rule == null)
                 return "Không tìm thấy quy tắc giá.";
 
-            rule.VehicleType = dto.VehicleType;
+            rule.ChargerType = dto.ChargerType;
+            rule.PowerKw = dto.PowerKw;
             rule.TimeRange = dto.TimeRange;
             rule.PricePerKwh = dto.PricePerKwh;
             rule.IdleFeePerMin = dto.IdleFeePerMin;

@@ -4,8 +4,11 @@ namespace Repositories.DTOs.PricingRules
 {
     public class PricingRuleCreateDto
     {
-        [Required(ErrorMessage = "Loại xe không được để trống")]
-        public string VehicleType { get; set; } // "Car" | "Motorbike"
+        [Required(ErrorMessage = "Loại trụ không được để trống")]
+        public string ChargerType { get; set; } // "AC" | "DC"
+
+        [Range(0, double.MaxValue, ErrorMessage = "Công suất phải lớn hơn 0")]
+        public decimal PowerKw { get; set; } // ví dụ: 60 hoặc 120
 
         [Required(ErrorMessage = "Khung giờ không được để trống")]
         public string TimeRange { get; set; } // "Low" | "Normal" | "Peak"
@@ -17,6 +20,7 @@ namespace Repositories.DTOs.PricingRules
         public decimal IdleFeePerMin { get; set; }
 
         [Required(ErrorMessage = "Trạng thái không được để trống")]
-        public string Status { get; set; } // "Active" | "Inactive"
+        [RegularExpression("^(Active|Inactive)$", ErrorMessage = "Trạng thái chỉ có thể là Active hoặc Inactive")]
+        public string Status { get; set; } = "Active";
     }
 }

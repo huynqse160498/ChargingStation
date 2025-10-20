@@ -8,42 +8,56 @@ namespace Repositories.Implementations
 {
     public class PricingRuleRepository : IPricingRuleRepository
     {
-        private readonly ChargeStationContext _db;
+        private readonly ChargeStationContext _context;
 
-        public PricingRuleRepository(ChargeStationContext db)
+        public PricingRuleRepository(ChargeStationContext context)
         {
-            _db = db;
+            _context = context;
         }
 
         public IQueryable<PricingRule> GetAll()
-            => _db.PricingRules.AsNoTracking().AsQueryable();
+        {
+            return _context.PricingRules.AsQueryable();
+        }
 
         public async Task<PricingRule?> GetByIdAsync(int id)
-            => await _db.PricingRules.FirstOrDefaultAsync(x => x.PricingRuleId == id);
-
-        public async Task<PricingRule?> GetActiveRuleAsync(string vehicleType, string timeRange)
-            => await _db.PricingRules
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.VehicleType == vehicleType
-                                               && x.TimeRange == timeRange
-                                               && x.Status == "Active");
-
-        public async Task AddAsync(PricingRule entity)
-            => await _db.PricingRules.AddAsync(entity);
-
-        public async Task UpdateAsync(PricingRule entity)
         {
-            _db.PricingRules.Update(entity);
+            return await _context.PricingRules.FirstOrDefaultAsync(x => x.PricingRuleId == id);
+        }
+
+        public async Task AddAsync(PricingRule rule)
+        {
+            await _context.PricingRules.AddAsync(rule);
+        }
+
+        public async Task UpdateAsync(PricingRule rule)
+        {
+            _context.PricingRules.Update(rule);
             await Task.CompletedTask;
         }
 
-        public async Task DeleteAsync(PricingRule entity)
+        public async Task DeleteAsync(PricingRule rule)
         {
-            _db.PricingRules.Remove(entity);
+            _context.PricingRules.Remove(rule);
             await Task.CompletedTask;
         }
 
         public async Task SaveAsync()
-            => await _db.SaveChangesAsync();
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        // 🔹 Lấy PricingRule đang hoạt động theo loại trụ, công suất và khung giờ
+        public async Task<PricingRule?> GetActiveRuleAsync(string chargerType, decimal powerKw, string timeRange)
+        {
+            return await _context.PricingRules
+                .Where(x =>
+                    x.Status == "Active" &&
+                    x.ChargerType == chargerType &&
+                    x.PowerKw == powerKw &&
+                    x.TimeRange == timeRange)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
     }
 }
