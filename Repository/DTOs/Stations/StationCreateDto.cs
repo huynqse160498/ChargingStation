@@ -22,8 +22,9 @@ namespace Repositories.DTOs.Stations
         public decimal? Latitude { get; set; }
         public decimal? Longitude { get; set; }
 
-        //[MaxLength(20)]
-        //public string Status { get; set; } = "Active";
+        // NEW: chỉ 2 trạng thái Open / Closed
+        [MaxLength(20)]
+        public string Status { get; set; } = "Open"; // default = Open
 
         [MaxLength(255)]
         public string? ImageUrl { get; set; }

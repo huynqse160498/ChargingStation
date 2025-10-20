@@ -18,7 +18,9 @@ namespace Repositories.Implementations
             => await _context.Ports.AsNoTracking().ToListAsync();
 
         public async Task<Port?> GetByIdAsync(int id)
-            => await _context.Ports.FirstOrDefaultAsync(p => p.PortId == id);
+            => await _context.Ports
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.PortId == id);
 
         public async Task AddAsync(Port port)
         {
@@ -46,21 +48,36 @@ namespace Repositories.Implementations
             return await q.AnyAsync();
         }
 
-        // NEW
+        // fixed
         public async Task<int> CountAsync(int? chargerId, string? status)
         {
             var q = _context.Ports.AsQueryable();
             if (chargerId.HasValue) q = q.Where(p => p.ChargerId == chargerId.Value);
             if (!string.IsNullOrWhiteSpace(status)) q = q.Where(p => p.Status == status);
+            if (chargerId.HasValue)
+                q = q.Where(p => p.ChargerId == chargerId.Value);
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var s = status.Trim();
+                q = q.Where(p => p.Status == s);
+            }
             return await q.CountAsync();
         }
 
-        // NEW
+
+        // fixed
         public async Task<List<Port>> GetPagedAsync(int page, int pageSize, int? chargerId, string? status)
         {
             var q = _context.Ports.AsNoTracking().AsQueryable();
-            if (chargerId.HasValue) q = q.Where(p => p.ChargerId == chargerId.Value);
-            if (!string.IsNullOrWhiteSpace(status)) q = q.Where(p => p.Status == status);
+            if (chargerId.HasValue)
+                q = q.Where(p => p.ChargerId == chargerId.Value);
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var s = status.Trim();
+                q = q.Where(p => p.Status == s);
+            }
 
             return await q.OrderBy(p => p.PortId)
                           .Skip((page - 1) * pageSize)
@@ -68,11 +85,13 @@ namespace Repositories.Implementations
                           .ToListAsync();
         }
 
-        // NEW
+
+        // NEW cập nhật status
         public async Task<bool> UpdateStatusAsync(int id, string status)
         {
             var entity = await _context.Ports.FirstOrDefaultAsync(p => p.PortId == id);
             if (entity == null) return false;
+
             entity.Status = status;
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();

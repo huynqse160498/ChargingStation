@@ -7,17 +7,29 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 
 namespace Services.Implementations
 {
     public class VehicleService : IVehicleService
     {
         private readonly IVehicleRepository _repo;
+        private readonly IS3Service _s3;
 
-        public VehicleService(IVehicleRepository repo)
+        public VehicleService(IVehicleRepository repo, IS3Service s3)
         {
             _repo = repo;
+            _s3 = s3;
         }
+
+        // ===== Status whitelist =====
+        private static readonly string[] AllowedStatuses = new[]
+        {
+            "Active", "Inactive", "Blacklisted", "Retired"
+        };
+        private static bool IsValidStatus(string? s) => AllowedStatuses.Contains((s ?? "").Trim());
+        private static string NormalizeStatus(string? s)
+            => IsValidStatus(s) ? s!.Trim() : "Active";
 
         // ===== Queries =====
 
@@ -36,16 +48,14 @@ namespace Services.Implementations
 
         public async Task<PagedResult<VehicleReadDto>> GetPagedAsync(
             int page, int pageSize,
-            string? licensePlate, string? carMaker, string? model, string? status,
+            string licensePlate, string carMaker, string model, string status,
             int? yearFrom, int? yearTo,
-            string? vehicleType // NEW
+            string vehicleType // NEW
         )
         {
-            var total = await _repo.CountAsync(licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); //NEW
-            var data = await _repo.GetPagedAsync(page, pageSize, licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType); //NEW
+            var total = await _repo.CountAsync(licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType);
+            var data = await _repo.GetPagedAsync(page, pageSize, licensePlate, carMaker, model, status, yearFrom, yearTo, vehicleType);
 
-            // Lưu ý: lớp PagedResult<T> của bạn cần có các thuộc tính: Total, Page, PageSize, Items
-            // Nếu tên khác (vd: TotalCount/Data), hãy đổi tên ở đây cho khớp.
             return new PagedResult<VehicleReadDto>
             {
                 TotalItems = total,
@@ -60,7 +70,8 @@ namespace Services.Implementations
         public async Task<VehicleReadDto> CreateAsync(VehicleCreateDto dto)
         {
             var normalizedPlate = dto.LicensePlate?.Trim().ToUpperInvariant();
-            if (await _repo.ExistsLicenseAsync(normalizedPlate))
+
+            if (await _repo.ExistsLicenseAsync(normalizedPlate ?? string.Empty))
                 throw new InvalidOperationException("Biển số đã tồn tại.");
 
             var v = new Vehicle
@@ -76,7 +87,9 @@ namespace Services.Implementations
                 ManufactureYear = dto.ManufactureYear,
                 ImageUrl = dto.ImageUrl?.Trim(),
                 VehicleType = dto.VehicleType?.Trim(),
-                Status = "Open", //NEW: thống nhất Service dùng Open
+
+                // NEW: mặc định Active (nếu DTO có Status thì chuẩn hoá theo whitelist)
+                Status = NormalizeStatus((dto as dynamic)?.Status),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -91,10 +104,11 @@ namespace Services.Implementations
             if (v == null) throw new KeyNotFoundException("Không tìm thấy vehicle.");
 
             var normalizedPlate = dto.LicensePlate?.Trim().ToUpperInvariant();
-            if (await _repo.ExistsLicenseAsync(normalizedPlate, ignoreId: id))
+
+            if (await _repo.ExistsLicenseAsync(normalizedPlate ?? string.Empty, ignoreId: id))
                 throw new InvalidOperationException("Biển số đã tồn tại.");
 
-            // (Tuỳ chính sách) Không đổi CustomerId ở update → bỏ gán CustomerId.
+            // (Tuỳ chính sách) Không đổi CustomerId ở update
             v.CompanyId = dto.CompanyId;
             v.CarMaker = dto.CarMaker?.Trim();
             v.Model = dto.Model?.Trim();
@@ -105,21 +119,23 @@ namespace Services.Implementations
             v.ManufactureYear = dto.ManufactureYear;
             v.ImageUrl = dto.ImageUrl?.Trim();
             v.VehicleType = dto.VehicleType?.Trim();
-            v.Status = "Open"; //NEW: thống nhất Service dùng Open
-            v.UpdatedAt = DateTime.UtcNow;
 
+            // NEW: chỉ cập nhật nếu DTO gửi status hợp lệ; nếu không thì giữ nguyên
+            var incomingStatus = (dto as dynamic)?.Status as string;
+            if (!string.IsNullOrWhiteSpace(incomingStatus) && IsValidStatus(incomingStatus))
+                v.Status = incomingStatus.Trim();
+
+            v.UpdatedAt = DateTime.UtcNow;
             await _repo.UpdateAsync(v);
         }
 
         public async Task ChangeStatusAsync(int id, string status)
         {
-            var v = await _repo.GetByIdAsync(id);
-            if (v == null) throw new KeyNotFoundException("Không tìm thấy vehicle.");
+            if (!IsValidStatus(status))
+                throw new ArgumentException("Status phải là: Active / Inactive / Blacklisted / Retired.");
 
-            v.Status = (status ?? string.Empty).Trim();
-            v.UpdatedAt = DateTime.UtcNow;
-
-            await _repo.UpdateAsync(v);
+            // Có thể dùng repo.UpdateStatusAsync để gọn
+            await _repo.UpdateStatusAsync(id, status.Trim());
         }
 
         public async Task DeleteAsync(int id)
@@ -146,10 +162,40 @@ namespace Services.Implementations
             ManufactureYear = v.ManufactureYear,
             CreatedAt = v.CreatedAt,
             UpdatedAt = v.UpdatedAt,
-            Status = v.Status,
+
+            // NEW: đảm bảo trả về đúng 1 trong 4 trạng thái
+            Status = NormalizeStatus(v.Status),
+
             ImageUrl = v.ImageUrl,
             VehicleType = v.VehicleType
         };
+
+        // ======================= [IMAGE UPLOAD] =======================
+        public async Task<VehicleReadDto> UploadImageAsync(int id, IFormFile file) // NEW
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("File rỗng.");
+
+            var contentType = (file.ContentType ?? "").ToLower();
+            if (!contentType.StartsWith("image/"))
+                throw new ArgumentException("Chỉ chấp nhận image/*");
+
+            var entity = await _repo.GetByIdAsync(id)
+                         ?? throw new KeyNotFoundException("Không tìm thấy vehicle.");
+
+            // upload lên S3
+            var url = await _s3.UploadFileAsync(file, $"vehicles/{id}");
+
+            // (tùy chọn) nếu muốn xoá ảnh cũ:
+            // if (!string.IsNullOrEmpty(entity.ImageUrl)) await _s3.DeleteFileAsync(entity.ImageUrl);
+
+            entity.ImageUrl = url;
+            entity.UpdatedAt = DateTime.UtcNow;
+
+            await _repo.UpdateAsync(entity);
+
+            return MapToReadDto(entity);
+        }
     }
 }
 

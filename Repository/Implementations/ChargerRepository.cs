@@ -14,6 +14,7 @@ namespace Repositories.Implementations
         private readonly ChargeStationContext _context;
         public ChargerRepository(ChargeStationContext context) { _context = context; }
 
+        // ======================= [CRUD] =======================
         public async Task<List<Charger>> GetAllAsync()
             => await _context.Chargers.AsNoTracking().ToListAsync();
 
@@ -45,15 +46,22 @@ namespace Repositories.Implementations
             return await q.AnyAsync();
         }
 
-        // ===== NEW: paging/filter helpers =====
+
+        // ======================= [FILTER + PAGING] =======================
         private static IQueryable<Charger> ApplyFilters(IQueryable<Charger> q,
             int? stationId, string? code, string? type, string? status,
             decimal? minPower, decimal? maxPower)
         {
             if (stationId.HasValue) q = q.Where(c => c.StationId == stationId.Value);
-            if (!string.IsNullOrWhiteSpace(code)) q = q.Where(c => c.Code.Contains(code));
+            if (!string.IsNullOrWhiteSpace(code)) q = q.Where(c => c.Code!.Contains(code));
             if (!string.IsNullOrWhiteSpace(type)) q = q.Where(c => c.Type == type);
-            if (!string.IsNullOrWhiteSpace(status)) q = q.Where(c => c.Status == status);
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var s = status.Trim();
+                // chỉ nhận 3 trạng thái hợp lệ
+                if (s == "Online" || s == "Offline" || s == "OutOfOrder")
+                    q = q.Where(c => c.Status == s);
+            }
             if (minPower.HasValue) q = q.Where(c => c.PowerKw >= minPower.Value);
             if (maxPower.HasValue) q = q.Where(c => c.PowerKw <= maxPower.Value);
             return q;
@@ -77,17 +85,52 @@ namespace Repositories.Implementations
                     .ToListAsync();
         }
 
+        // ======================= [INCLUDE PORTS] =======================
+        public Task<Charger?> GetByIdWithPortsAsync(int id)
+            => _context.Chargers
+                       .AsNoTracking()
+                       .Include(c => c.Ports)
+                       .FirstOrDefaultAsync(c => c.ChargerId == id);
+
+
+        public Task<List<Charger>> GetPagedWithPortsAsync(
+            int page, int pageSize, int? stationId = null, string? status = null)
+        {
+            var q = _context.Chargers
+                            .AsNoTracking()
+                            .Include(c => c.Ports)
+                            .AsQueryable();
+
+
+            if (stationId.HasValue) q = q.Where(c => c.StationId == stationId.Value);
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                var s = status.Trim();
+                if (s == "Online" || s == "Offline" || s == "OutOfOrder")
+                    q = q.Where(c => c.Status == s);
+            }
+            return q.OrderBy(c => c.ChargerId)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+        }
+
+        // ======================= [STATUS UPDATE] =======================
         public async Task<bool> UpdateStatusAsync(int id, string status)
         {
             var entity = await _context.Chargers.FirstOrDefaultAsync(c => c.ChargerId == id);
             if (entity == null) return false;
-            entity.Status = status;
+
+            // normalize: chỉ 3 trạng thái, mặc định Online
+            entity.Status = status == "Offline"
+                          ? "Offline"
+                          : (status == "OutOfOrder" ? "OutOfOrder" : "Online");
+
             entity.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
         }
 
-
-        public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+        public Task SaveChangesAsync() => _context.SaveChangesAsync();
     }
 }

@@ -53,8 +53,17 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
             builder.Services.AddScoped<IVehicleService, VehicleService>();
 
+            builder.Services.AddScoped<ISubscriptionPlanRepository, SubscriptionPlanRepository>();
+            builder.Services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
+
+            builder.Services.AddScoped<ISubscriptionRepository, SubscriptionRepository>();
+            builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+
+            builder.Services.AddScoped<IS3Service, S3Service>();
+
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IBookingService, BookingService>();
+
 
             builder.Services.AddScoped<IPricingRuleRepository, PricingRuleRepository>();
             builder.Services.AddScoped<IPricingRuleService, PricingRuleService>();

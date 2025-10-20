@@ -23,7 +23,6 @@ namespace Services.Implementations
             _s3Client = new AmazonS3Client(accessKey, secretKey, region);
         }
 
-        // ✅ Upload file
         public async Task<string> UploadFileAsync(IFormFile file, string folder)
         {
             var fileName = $"{folder}/{Guid.NewGuid()}_{file.FileName}";
@@ -34,8 +33,8 @@ namespace Services.Implementations
                 InputStream = stream,
                 Key = fileName,
                 BucketName = _bucketName,
-                ContentType = file.ContentType,
-                CannedACL = S3CannedACL.PublicRead
+                ContentType = file.ContentType
+                // ❌ Không dùng CannedACL nữa
             };
 
             var transferUtility = new TransferUtility(_s3Client);
@@ -44,18 +43,17 @@ namespace Services.Implementations
             return $"https://{_bucketName}.s3.{_s3Client.Config.RegionEndpoint.SystemName}.amazonaws.com/{fileName}";
         }
 
-        // 🗑️ Delete file
+
         public async Task<bool> DeleteFileAsync(string fileUrl)
         {
             try
             {
                 var key = ExtractKeyFromUrl(fileUrl);
-                var deleteRequest = new DeleteObjectRequest
+                await _s3Client.DeleteObjectAsync(new DeleteObjectRequest
                 {
                     BucketName = _bucketName,
                     Key = key
-                };
-                await _s3Client.DeleteObjectAsync(deleteRequest);
+                });
                 return true;
             }
             catch
@@ -64,35 +62,32 @@ namespace Services.Implementations
             }
         }
 
-        // ✏️ Rename file (copy → delete → new URL)
         public async Task<string> RenameFileAsync(string oldFileUrl, string newFileName)
         {
             var oldKey = ExtractKeyFromUrl(oldFileUrl);
             var folder = oldKey.Contains('/') ? oldKey[..oldKey.LastIndexOf('/')] : "";
             var newKey = $"{folder}/{newFileName}";
 
-            // Copy
-            var copyRequest = new CopyObjectRequest
+            await _s3Client.CopyObjectAsync(new CopyObjectRequest
             {
                 SourceBucket = _bucketName,
                 SourceKey = oldKey,
                 DestinationBucket = _bucketName,
-                DestinationKey = newKey,
-                CannedACL = S3CannedACL.PublicRead
-            };
-            await _s3Client.CopyObjectAsync(copyRequest);
+                DestinationKey = newKey
+                // ❌ Không dùng CannedACL
+            });
 
-            // Delete old
             await _s3Client.DeleteObjectAsync(_bucketName, oldKey);
-
-            return $"https://{_bucketName}.s3.{_s3Client.Config.RegionEndpoint.SystemName}.amazonaws.com/{newKey}";
+            return GenerateFileUrl(newKey);
         }
 
-        // 🧠 Helper - tách key (đường dẫn nội bộ) từ URL public
         private string ExtractKeyFromUrl(string fileUrl)
         {
             var prefix = $"https://{_bucketName}.s3.{_s3Client.Config.RegionEndpoint.SystemName}.amazonaws.com/";
             return fileUrl.Replace(prefix, "");
         }
+
+        private string GenerateFileUrl(string key) =>
+            $"https://{_bucketName}.s3.{_s3Client.Config.RegionEndpoint.SystemName}.amazonaws.com/{key}";
     }
 }

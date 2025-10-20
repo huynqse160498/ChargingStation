@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,7 +15,7 @@ namespace Repositories.DTOs.Vehicles
         public int? CompanyId { get; set; }
 
         [Required, MaxLength(100)]
-        public string CarMaker { get; set; }
+        public string CarMaker { get; set; } 
 
         [Required, MaxLength(100)]
         public string Model { get; set; }
@@ -38,6 +37,9 @@ namespace Repositories.DTOs.Vehicles
         [MaxLength(255)]
         public string? ImageUrl { get; set; }
 
-        public string VehicleType { get; set; } 
+        public string VehicleType { get; set; }
+
+        [MaxLength(20)]
+        public string Status { get; set; } = "Active"; // Active | Inactive | Blacklisted | Retired
     }
 }
