@@ -59,6 +59,11 @@ namespace Repositories.Models
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
             });
             #endregion
+            modelBuilder.Entity<Company>()
+                        .HasOne(c => c.Account)
+                        .WithOne(a => a.Company)
+                        .HasForeignKey<Company>(c => c.AccountId)
+                        .OnDelete(DeleteBehavior.Cascade);
 
             #region Booking
             modelBuilder.Entity<Booking>(entity =>

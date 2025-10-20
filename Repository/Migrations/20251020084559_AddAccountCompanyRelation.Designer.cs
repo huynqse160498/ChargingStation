@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Repositories.Models;
 
@@ -11,9 +12,11 @@ using Repositories.Models;
 namespace Repositories.Migrations
 {
     [DbContext(typeof(ChargeStationContext))]
-    partial class ChargeStationContextModelSnapshot : ModelSnapshot
+    [Migration("20251020084559_AddAccountCompanyRelation")]
+    partial class AddAccountCompanyRelation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,62 +24,6 @@ namespace Repositories.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Invoice", b =>
-                {
-                    b.Property<int>("InvoiceId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceId"));
-
-                    b.Property<int>("BillingMonth")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BillingYear")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
-
-                    b.Property<bool>("IsMonthlyInvoice")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)")
-                        .HasDefaultValue("Unpaid");
-
-                    b.Property<decimal?>("SubscriptionAdjustment")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<int>("SubscriptionId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("Subtotal")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<decimal?>("Tax")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<decimal?>("Total")
-                        .HasColumnType("decimal(12,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime")
-                        .HasDefaultValueSql("(getdate())");
-
-                    b.HasKey("InvoiceId");
-
-                    b.HasIndex("SubscriptionId");
-
-                    b.ToTable("Invoice", (string)null);
-                });
 
             modelBuilder.Entity("Repositories.Models.Account", b =>
                 {
@@ -434,6 +381,66 @@ namespace Repositories.Migrations
                     b.ToTable("Customer", (string)null);
                 });
 
+            modelBuilder.Entity("Repositories.Models.Invoice", b =>
+                {
+                    b.Property<int>("InvoiceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("InvoiceId"));
+
+                    b.Property<int>("BillingMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BillingYear")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsMonthlyInvoice")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Unpaid");
+
+                    b.Property<decimal?>("SubscriptionAdjustment")
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<int?>("SubscriptionId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Subtotal")
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal?>("Tax")
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal?>("Total")
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
+
+                    b.HasKey("InvoiceId");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("SubscriptionId");
+
+                    b.ToTable("Invoice", (string)null);
+                });
+
             modelBuilder.Entity("Repositories.Models.Payment", b =>
                 {
                     b.Property<int>("PaymentId")
@@ -477,7 +484,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("InvoiceId");
 
-                    b.ToTable("Payments", (string)null);
+                    b.ToTable("Payment", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.Port", b =>
@@ -516,7 +523,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("ChargerId");
 
-                    b.ToTable("Ports", (string)null);
+                    b.ToTable("Port", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.PricingRule", b =>
@@ -595,7 +602,7 @@ namespace Repositories.Migrations
 
                     b.HasKey("StationId");
 
-                    b.ToTable("Stations", (string)null);
+                    b.ToTable("Station", (string)null);
                 });
 
             modelBuilder.Entity("Repositories.Models.SubscriptionPlan", b =>
@@ -719,7 +726,7 @@ namespace Repositories.Migrations
 
                     b.HasIndex("CustomerId");
 
-                    b.ToTable("Vehicles", (string)null);
+                    b.ToTable("Vehicle", (string)null);
                 });
 
             modelBuilder.Entity("Subscription", b =>
@@ -786,17 +793,6 @@ namespace Repositories.Migrations
                     b.ToTable("Subscription", (string)null);
                 });
 
-            modelBuilder.Entity("Invoice", b =>
-                {
-                    b.HasOne("Subscription", "Subscription")
-                        .WithMany("Invoices")
-                        .HasForeignKey("SubscriptionId")
-                        .IsRequired()
-                        .HasConstraintName("FK_Invoice_Subscription");
-
-                    b.Navigation("Subscription");
-                });
-
             modelBuilder.Entity("Repositories.Models.Booking", b =>
                 {
                     b.HasOne("Repositories.Models.Customer", "Customer")
@@ -842,7 +838,7 @@ namespace Repositories.Migrations
                         .HasForeignKey("CustomerId")
                         .IsRequired();
 
-                    b.HasOne("Invoice", "Invoice")
+                    b.HasOne("Repositories.Models.Invoice", "Invoice")
                         .WithMany("ChargingSessions")
                         .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.SetNull)
@@ -904,6 +900,24 @@ namespace Repositories.Migrations
                     b.Navigation("Company");
                 });
 
+            modelBuilder.Entity("Repositories.Models.Invoice", b =>
+                {
+                    b.HasOne("Repositories.Models.Customer", "Customer")
+                        .WithMany("Invoices")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Subscription", "Subscription")
+                        .WithMany("Invoices")
+                        .HasForeignKey("SubscriptionId")
+                        .HasConstraintName("FK_Invoice_Subscription");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Subscription");
+                });
+
             modelBuilder.Entity("Repositories.Models.Payment", b =>
                 {
                     b.HasOne("Repositories.Models.Booking", "Booking")
@@ -916,7 +930,7 @@ namespace Repositories.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Invoice", "Invoice")
+                    b.HasOne("Repositories.Models.Invoice", "Invoice")
                         .WithMany("Payments")
                         .HasForeignKey("InvoiceId");
 
@@ -986,13 +1000,6 @@ namespace Repositories.Migrations
                     b.Navigation("SubscriptionPlan");
                 });
 
-            modelBuilder.Entity("Invoice", b =>
-                {
-                    b.Navigation("ChargingSessions");
-
-                    b.Navigation("Payments");
-                });
-
             modelBuilder.Entity("Repositories.Models.Account", b =>
                 {
                     b.Navigation("Company");
@@ -1027,11 +1034,20 @@ namespace Repositories.Migrations
 
                     b.Navigation("ChargingSessions");
 
+                    b.Navigation("Invoices");
+
                     b.Navigation("Payments");
 
                     b.Navigation("Subscriptions");
 
                     b.Navigation("Vehicles");
+                });
+
+            modelBuilder.Entity("Repositories.Models.Invoice", b =>
+                {
+                    b.Navigation("ChargingSessions");
+
+                    b.Navigation("Payments");
                 });
 
             modelBuilder.Entity("Repositories.Models.Port", b =>

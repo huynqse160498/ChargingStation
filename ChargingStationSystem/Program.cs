@@ -70,6 +70,8 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IVnPayService, VnPayService>();
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
+            builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
+            builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService
 
