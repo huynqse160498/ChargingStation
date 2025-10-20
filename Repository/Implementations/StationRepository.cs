@@ -95,8 +95,11 @@ namespace Repositories.Implementations
             var entity = await _context.Stations.FirstOrDefaultAsync(s => s.StationId == id);
             if (entity == null) return false;
 
+            var v = (status ?? "").Trim();
+            if (v != "Open" && v != "Closed") return false;
+
             // NEW: chỉ cho phép "Open" hoặc "Closed"
-            entity.Status = status;
+            entity.Status = v;
             entity.UpdatedAt = DateTime.UtcNow;
 
 
@@ -105,5 +108,7 @@ namespace Repositories.Implementations
         }
 
         public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+
+
     }
 }

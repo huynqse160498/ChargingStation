@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 
 namespace Services.Interfaces
 {
@@ -30,5 +31,9 @@ namespace Services.Interfaces
 
         // NEW: đổi trạng thái nhanh (Open / Closed)
         Task<bool> ChangeStatusAsync(int id, string status);
+
+
+        // ======================= [IMAGE UPLOAD] =======================
+        Task<StationReadDto> UploadImageAsync(int id, IFormFile file);
     }
 }

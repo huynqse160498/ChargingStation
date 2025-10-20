@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Repositories.DTOs.Stations;
 using Services.Interfaces;
+using Microsoft.AspNetCore.Http;
 
 namespace ChargingStationSystem.Controllers
 {
@@ -98,6 +99,30 @@ namespace ChargingStationSystem.Controllers
 
             var ok = await _service.ChangeStatusAsync(id, value);
             return ok ? NoContent() : NotFound();
+        }
+
+        // ======================= [UPLOAD IMAGE] =======================
+        // POST: /api/stations/image/upload
+        [HttpPost("image/upload")]
+        [Consumes("multipart/form-data")] // bắt buộc để Swagger hiển thị Choose File
+        [ProducesResponseType(typeof(StationReadDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UploadImage([FromForm] StationImageUploadDto form) // NEW
+        {
+            try
+            {
+                var dto = await _service.UploadImageAsync(form.StationId, form.File);
+                return Ok(dto);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

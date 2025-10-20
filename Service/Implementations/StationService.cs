@@ -6,16 +6,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 
 namespace Services.Implementations
 {
     public class StationService : IStationService
     {
         private readonly IStationRepository _repo;
+        private readonly IS3Service _s3;
 
-        public StationService(IStationRepository repo)
+        public StationService(IStationRepository repo, IS3Service s3)
         {
             _repo = repo;
+            _s3 = s3;
         }
 
         // NEW: whitelist 2 trạng thái
@@ -116,5 +119,32 @@ namespace Services.Implementations
             Status = Normalize(s.Status),
             ImageUrl = s.ImageUrl
         };
+
+        // ======================= [IMAGE UPLOAD] =======================
+        public async Task<StationReadDto> UploadImageAsync(int id, IFormFile file) // NEW
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("File rỗng.");
+
+            var contentType = (file.ContentType ?? "").ToLower();
+            if (!contentType.StartsWith("image/"))
+                throw new ArgumentException("Chỉ chấp nhận image/*");
+
+            // lấy entity (tracking) để cập nhật
+            var entity = await _repo.GetByIdAsync(id);
+            if (entity == null) throw new KeyNotFoundException("Không tìm thấy station.");
+
+            // upload: folder theo chuẩn stations/{id}
+            var url = await _s3.UploadFileAsync(file, $"stations/{id}");
+
+            // (tuỳ) nếu muốn xoá ảnh cũ:
+            // if (!string.IsNullOrEmpty(entity.ImageUrl)) await _s3.DeleteFileAsync(entity.ImageUrl);
+
+            entity.ImageUrl = url;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _repo.UpdateAsync(entity);
+
+            return MapToRead(entity);
+        }
     }
 }
