@@ -1,4 +1,5 @@
-﻿using Repositories.DTOs.Ports;
+﻿using Microsoft.AspNetCore.Http;
+using Repositories.DTOs.Ports;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -30,5 +31,8 @@ namespace Services.Interfaces
 
         // NEW: đổi trạng thái nhanh (Available / Reserved / Occupied / Disabled)
         Task<bool> ChangeStatusAsync(int id, string status);
+
+        // ======================= [IMAGE UPLOAD] =======================
+        Task<PortReadDto> UploadImageAsync(int id, IFormFile file);
     }
 }

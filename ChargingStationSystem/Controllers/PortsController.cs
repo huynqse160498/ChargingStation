@@ -111,5 +111,23 @@ namespace ChargingStationSystem.Controllers
             var ok = await _service.ChangeStatusAsync(id, req.Status);
             return ok ? NoContent() : NotFound();
         }
+        // ======================= [UPLOAD IMAGE] =======================
+        // POST: /api/ports/image/upload
+        [HttpPost("image/upload")]
+        [Consumes("multipart/form-data")] // NEW
+        [ProducesResponseType(typeof(PortReadDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UploadImage([FromForm] PortImageUploadDto form)
+        {
+            try
+            {
+                var dto = await _service.UploadImageAsync(form.PortId, form.File);
+                return Ok(dto);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+            catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        }
     }
 }
+    
