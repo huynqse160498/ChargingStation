@@ -7,16 +7,19 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 
 namespace Services.Implementations
 {
     public class VehicleService : IVehicleService
     {
         private readonly IVehicleRepository _repo;
+        private readonly IS3Service _s3;
 
-        public VehicleService(IVehicleRepository repo)
+        public VehicleService(IVehicleRepository repo, IS3Service s3)
         {
             _repo = repo;
+            _s3 = s3;
         }
 
         // ===== Status whitelist =====
@@ -166,6 +169,33 @@ namespace Services.Implementations
             ImageUrl = v.ImageUrl,
             VehicleType = v.VehicleType
         };
+
+        // ======================= [IMAGE UPLOAD] =======================
+        public async Task<VehicleReadDto> UploadImageAsync(int id, IFormFile file) // NEW
+        {
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("File rỗng.");
+
+            var contentType = (file.ContentType ?? "").ToLower();
+            if (!contentType.StartsWith("image/"))
+                throw new ArgumentException("Chỉ chấp nhận image/*");
+
+            var entity = await _repo.GetByIdAsync(id)
+                         ?? throw new KeyNotFoundException("Không tìm thấy vehicle.");
+
+            // upload lên S3
+            var url = await _s3.UploadFileAsync(file, $"vehicles/{id}");
+
+            // (tùy chọn) nếu muốn xoá ảnh cũ:
+            // if (!string.IsNullOrEmpty(entity.ImageUrl)) await _s3.DeleteFileAsync(entity.ImageUrl);
+
+            entity.ImageUrl = url;
+            entity.UpdatedAt = DateTime.UtcNow;
+
+            await _repo.UpdateAsync(entity);
+
+            return MapToReadDto(entity);
+        }
     }
 }
 

@@ -80,5 +80,29 @@ namespace ChargingStationSystem.Controllers
             await _svc.DeleteAsync(id);
             return NoContent();
         }
+
+        // ======================= [UPLOAD IMAGE] =======================
+        // POST: /api/vehicles/image/upload
+        [HttpPost("image/upload")]
+        [Consumes("multipart/form-data")]
+        [ProducesResponseType(typeof(VehicleReadDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> UploadImage([FromForm] VehicleImageUploadDto form)
+        {
+            try
+            {
+                var dto = await _svc.UploadImageAsync(form.VehicleId, form.File);
+                return Ok(dto);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
     }
 }

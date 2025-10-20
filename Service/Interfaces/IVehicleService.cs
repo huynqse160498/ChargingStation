@@ -1,4 +1,5 @@
-﻿using Repositories.DTOs;
+﻿using Microsoft.AspNetCore.Http;
+using Repositories.DTOs;
 using Repositories.DTOs.Vehicles;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -26,5 +27,8 @@ namespace Services.Interfaces
         Task UpdateAsync(int id, VehicleUpdateDto dto);
         Task ChangeStatusAsync(int id, string status);
         Task DeleteAsync(int id);
+
+        // ======================= [IMAGE UPLOAD] =======================
+        Task<VehicleReadDto> UploadImageAsync(int id, IFormFile file);
     }
 }
