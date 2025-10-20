@@ -245,6 +245,37 @@ namespace Repositories.Models
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
             });
             #endregion
+            #region PricingRule
+            modelBuilder.Entity<PricingRule>(entity =>
+            {
+                entity.HasKey(e => e.PricingRuleId);
+                entity.Property(e => e.PricePerKwh).HasColumnType("decimal(10,2)");
+                entity.Property(e => e.IdleFeePerMin).HasColumnType("decimal(10,2)");
+                entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Active");
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
+
+                // ⚠️ Không còn StationId hoặc liên kết với Station
+                entity.Ignore("StationId");
+            });
+            #endregion
+            modelBuilder.Entity<Payment>()
+    .Property(p => p.Amount)
+    .HasColumnType("decimal(12,2)");
+
+            modelBuilder.Entity<Port>()
+                .Property(p => p.MaxPowerKw)
+                .HasColumnType("decimal(10,2)");
+
+            modelBuilder.Entity<Station>(entity =>
+            {
+                entity.Property(e => e.Latitude).HasColumnType("decimal(10,6)");
+                entity.Property(e => e.Longitude).HasColumnType("decimal(10,6)");
+            });
+
+            modelBuilder.Entity<Vehicle>()
+                .Property(v => v.BatteryCapacity)
+                .HasColumnType("decimal(10,2)");
 
             OnModelCreatingPartial(modelBuilder);
         }

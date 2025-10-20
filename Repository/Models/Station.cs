@@ -28,6 +28,6 @@ public partial class Station
     public string ImageUrl { get; set; }
 
     public virtual ICollection<Charger> Chargers { get; set; } = new List<Charger>();
-    public virtual ICollection<PricingRule> PricingRules { get; set; } = new HashSet<PricingRule>();
+    //public virtual ICollection<PricingRule> PricingRules { get; set; } = new HashSet<PricingRule>();
 
 }

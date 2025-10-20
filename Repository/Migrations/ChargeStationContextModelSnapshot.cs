@@ -447,7 +447,7 @@ namespace Repositories.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PaymentId"));
 
                     b.Property<decimal?>("Amount")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(12,2)");
 
                     b.Property<int?>("BookingId")
                         .HasColumnType("int");
@@ -508,7 +508,7 @@ namespace Repositories.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("MaxPowerKw")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("Status")
                         .HasColumnType("nvarchar(max)");
@@ -535,32 +535,39 @@ namespace Repositories.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
 
                     b.Property<decimal>("IdleFeePerMin")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<decimal>("PowerKw")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PricePerKwh")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
-                    b.Property<int?>("StationId")
+                    b.Property<int?>("StationId1")
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
-                        .HasColumnType("nvarchar(max)");
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Active");
 
                     b.Property<string>("TimeRange")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasDefaultValueSql("(getdate())");
 
                     b.HasKey("PricingRuleId");
 
-                    b.HasIndex("StationId");
+                    b.HasIndex("StationId1");
 
                     b.ToTable("PricingRules", (string)null);
                 });
@@ -586,10 +593,10 @@ namespace Repositories.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal?>("Latitude")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,6)");
 
                     b.Property<decimal?>("Longitude")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,6)");
 
                     b.Property<string>("StationName")
                         .HasColumnType("nvarchar(max)");
@@ -679,7 +686,7 @@ namespace Repositories.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("VehicleId"));
 
                     b.Property<decimal?>("BatteryCapacity")
-                        .HasColumnType("decimal(18,2)");
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("CarMaker")
                         .HasColumnType("nvarchar(max)");
@@ -956,7 +963,7 @@ namespace Repositories.Migrations
                 {
                     b.HasOne("Repositories.Models.Station", null)
                         .WithMany("PricingRules")
-                        .HasForeignKey("StationId");
+                        .HasForeignKey("StationId1");
                 });
 
             modelBuilder.Entity("Repositories.Models.Vehicle", b =>
