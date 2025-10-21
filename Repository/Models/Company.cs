@@ -34,5 +34,7 @@ public partial class Company
 
     public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
     public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
+    public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+
 
 }

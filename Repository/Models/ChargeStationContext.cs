@@ -87,6 +87,37 @@ namespace Repositories.Models
                 entity.HasOne(d => d.Vehicle).WithMany(p => p.Bookings)
                     .HasForeignKey(d => d.VehicleId)
                     .OnDelete(DeleteBehavior.ClientSetNull);
+
+                entity.HasKey(e => e.BookingId);
+
+                entity.Property(e => e.Status)
+                      .HasMaxLength(20)
+                      .HasDefaultValue("Pending");
+
+                entity.Property(e => e.Price)
+                      .HasColumnType("decimal(12,2)");
+
+                entity.HasOne(d => d.Customer)
+                      .WithMany(p => p.Bookings)
+                      .HasForeignKey(d => d.CustomerId)
+                      .OnDelete(DeleteBehavior.ClientSetNull)
+                      .IsRequired(false);
+
+                entity.HasOne(d => d.Company)
+                      .WithMany(p => p.Bookings)
+                      .HasForeignKey(d => d.CompanyId)
+                      .OnDelete(DeleteBehavior.ClientSetNull)
+                      .IsRequired(false);
+
+                entity.HasOne(d => d.Vehicle)
+                      .WithMany(p => p.Bookings)
+                      .HasForeignKey(d => d.VehicleId)
+                      .OnDelete(DeleteBehavior.ClientSetNull);
+
+                entity.HasOne(d => d.Port)
+                      .WithMany(p => p.Bookings)
+                      .HasForeignKey(d => d.PortId)
+                      .OnDelete(DeleteBehavior.ClientSetNull);
             });
             #endregion
 

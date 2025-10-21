@@ -8,7 +8,8 @@ namespace Repositories.Models;
 public partial class Booking
 {
     public int BookingId { get; set; }
-    public int CustomerId { get; set; }
+    public int? CustomerId { get; set; }
+    public int? CompanyId { get; set; }  // nếu là doanh nghiệp
     public int VehicleId { get; set; }
     public int PortId { get; set; }
     public DateTime? StartTime { get; set; }
@@ -22,6 +23,6 @@ public partial class Booking
     public virtual Customer Customer { get; set; }
     public virtual Port Port { get; set; }
     public virtual Vehicle Vehicle { get; set; }
-
+    public virtual Company? Company { get; set; } // ✅ Thêm dòng này
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
 }

@@ -52,7 +52,7 @@ namespace Services.Implementations
             var payment = new Payment
             {
                 BookingId = booking.BookingId,
-                CustomerId = booking.CustomerId,
+                CustomerId = booking.CustomerId ?? 0,
                 Amount = booking.Price ?? 0,
                 Method = "VNPAY",
                 Status = "Success",

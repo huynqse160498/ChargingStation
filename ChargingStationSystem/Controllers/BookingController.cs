@@ -39,7 +39,7 @@ namespace WebAPI.Controllers
         }
 
         // =============================
-        // 🔹 Tạo mới Booking
+        // 🔹 Tạo mới Booking (Customer hoặc Company)
         // =============================
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] BookingDtos.Create dto)
@@ -47,11 +47,15 @@ namespace WebAPI.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // ✅ Cho phép booking của Customer hoặc Company
+            if (dto.CustomerId == 0 && dto.CompanyId == null)
+                return BadRequest(new { message = "Cần cung cấp CustomerId hoặc CompanyId để đặt lịch." });
+
             // ✅ Set mặc định trạng thái = Pending
-            if (string.IsNullOrEmpty(dto.Status))
-                dto.Status = "Pending";
+            dto.Status ??= "Pending";
 
             var message = await _service.CreateAsync(dto);
+
             if (message.Contains("không") || message.Contains("trước"))
                 return BadRequest(new { message });
 
@@ -97,7 +101,6 @@ namespace WebAPI.Controllers
                 return BadRequest(ModelState);
 
             var message = await _service.ChangeStatusAsync(id, dto.Status);
-
             if (message.Contains("không"))
                 return BadRequest(new { message });
 

@@ -21,36 +21,27 @@ namespace Services.Implementations
         }
 
         // ===========================
-        // 🔹 Lấy danh sách Booking (phân trang + tìm kiếm)
+        // 🔎 Danh sách + tìm kiếm
         // ===========================
         public async Task<PagedResult<BookingDtos.ListItem>> GetAllAsync(BookingDtos.Query q)
         {
-            var query = _repo.GetAll();
+            var query = _db.Bookings.AsNoTracking().AsQueryable();
 
-            // Bộ lọc cơ bản
-            if (q.CustomerId.HasValue)
-                query = query.Where(x => x.CustomerId == q.CustomerId);
-            if (q.VehicleId.HasValue)
-                query = query.Where(x => x.VehicleId == q.VehicleId);
-            if (q.PortId.HasValue)
-                query = query.Where(x => x.PortId == q.PortId);
-            if (!string.IsNullOrEmpty(q.Status))
-                query = query.Where(x => x.Status == q.Status);
+            if (q.CustomerId.HasValue) query = query.Where(x => x.CustomerId == q.CustomerId);
+            if (q.VehicleId.HasValue) query = query.Where(x => x.VehicleId == q.VehicleId);
+            if (q.PortId.HasValue) query = query.Where(x => x.PortId == q.PortId);
+            if (!string.IsNullOrEmpty(q.Status)) query = query.Where(x => x.Status == q.Status);
             if (!string.IsNullOrEmpty(q.Search))
-                query = query.Where(x =>
-                    x.Status.Contains(q.Search) ||
-                    x.Price.ToString().Contains(q.Search));
+                query = query.Where(x => x.Status.Contains(q.Search) || x.Price.ToString()!.Contains(q.Search));
 
-            // Sắp xếp
-            bool desc = q.SortDir?.ToLower() == "desc";
+            bool desc = (q.SortDir ?? "desc").Equals("desc", StringComparison.OrdinalIgnoreCase);
             query = (q.SortBy ?? "CreatedAt").ToLower() switch
             {
                 "price" => desc ? query.OrderByDescending(x => x.Price) : query.OrderBy(x => x.Price),
                 "starttime" => desc ? query.OrderByDescending(x => x.StartTime) : query.OrderBy(x => x.StartTime),
-                _ => desc ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt)
+                _ => desc ? query.OrderByDescending(x => x.CreatedAt) : query.OrderBy(x => x.CreatedAt),
             };
 
-            // Phân trang
             var total = await query.LongCountAsync();
             var items = await query.Skip((q.Page - 1) * q.PageSize)
                                    .Take(q.PageSize)
@@ -79,11 +70,11 @@ namespace Services.Implementations
         }
 
         // ===========================
-        // 🔹 Lấy chi tiết Booking
+        // 🔎 Chi tiết
         // ===========================
         public async Task<BookingDtos.Detail?> GetByIdAsync(int id)
         {
-            var b = await _repo.GetByIdAsync(id);
+            var b = await _db.Bookings.AsNoTracking().FirstOrDefaultAsync(x => x.BookingId == id);
             if (b == null) return null;
 
             return new BookingDtos.Detail
@@ -102,39 +93,43 @@ namespace Services.Implementations
         }
 
         // ===========================
-        // 🔹 Tạo mới Booking
+        // ✅ Tạo mới (đặt cọc Port = Reserved)
         // ===========================
         public async Task<string> CreateAsync(BookingDtos.Create dto)
         {
-            // ⚙️ Kiểm tra logic thời gian
-            if (dto.StartTime >= dto.EndTime)
-                return "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.";
-            if (dto.StartTime < DateTime.Now.AddHours(1))
-                return "Bạn cần đặt lịch trước ít nhất 1 tiếng.";
+            if (dto.StartTime >= dto.EndTime) return "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.";
+            if (dto.StartTime < DateTime.Now.AddHours(1)) return "Bạn cần đặt lịch trước ít nhất 1 tiếng.";
 
-            // 🔎 Kiểm tra xe
             var vehicle = await _db.Vehicles.FindAsync(dto.VehicleId);
-            if (vehicle == null)
-                return "Không tìm thấy xe.";
+            if (vehicle == null) return "Không tìm thấy xe.";
 
-            // 🔎 Kiểm tra cổng sạc
-            var port = await _db.Ports.FindAsync(dto.PortId);
-            if (port == null)
-                return "Không tìm thấy cổng sạc.";
+            // Transaction + Serializable để tránh race-condition
+            await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
-            // ⚠️ Kiểm tra tương thích giữa Vehicle và Port
-            if (!string.Equals(vehicle.ConnectorType, port.ConnectorType, StringComparison.OrdinalIgnoreCase))
+            var port = await _db.Ports.FirstOrDefaultAsync(p => p.PortId == dto.PortId);
+            if (port == null) return "Không tìm thấy cổng sạc.";
+
+            // Kiểm tra tương thích đầu nối
+            if (!IsConnectorCompatible(vehicle.ConnectorType, port.ConnectorType))
                 return $"Xe ({vehicle.ConnectorType}) không tương thích với cổng sạc ({port.ConnectorType}).";
 
-            // ⚠️ Kiểm tra trùng giờ
-            var overlap = await _db.Bookings.AnyAsync(x =>
+            // Kiểm tra Port có đang InUse không
+            if (string.Equals(port.Status, "InUse", StringComparison.OrdinalIgnoreCase))
+                return "Cổng sạc hiện đang sử dụng.";
+
+            // Kiểm tra trùng lịch tại thời điểm hiện tại (Pending/Confirmed/InProgress)
+            bool conflict = await _db.Bookings.AnyAsync(x =>
                 x.PortId == dto.PortId &&
+                x.Status != "Cancelled" &&
                 dto.StartTime < x.EndTime &&
                 dto.EndTime > x.StartTime);
-            if (overlap)
-                return "Khoảng thời gian này đã có đặt lịch tại cổng sạc này.";
 
-            // 🔹 Tính giá
+            if (conflict) return "Khoảng thời gian này đã có đặt lịch tại cổng sạc này.";
+
+            // Đặt chỗ port = Reserved (nếu chưa InUse)
+            if (!string.Equals(port.Status, "InUse", StringComparison.OrdinalIgnoreCase))
+                port.Status = "Reserved";
+
             var price = CalculatePrice(dto.StartTime, dto.EndTime, vehicle.VehicleType);
 
             var booking = new Booking
@@ -145,7 +140,7 @@ namespace Services.Implementations
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
                 Price = price,
-                Status = "Pending",
+                Status = "Pending", // mặc định
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
             };
@@ -153,95 +148,183 @@ namespace Services.Implementations
             await _repo.AddAsync(booking);
             await _repo.SaveAsync();
 
+            await tx.CommitAsync();
             return $"Tạo đặt lịch thành công! Giá tạm tính: {price:N0} VNĐ";
         }
 
         // ===========================
-        // 🔹 Cập nhật Booking
+        // ✏️ Cập nhật (giữ trạng thái Port hợp lệ)
         // ===========================
         public async Task<string> UpdateAsync(int id, BookingDtos.Update dto)
         {
-            var b = await _repo.GetByIdAsync(id);
-            if (b == null)
-                return "Không tìm thấy đặt lịch.";
+            var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.BookingId == id);
+            if (booking == null) return "Không tìm thấy đặt lịch.";
 
-            if (dto.StartTime >= dto.EndTime)
-                return "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.";
-            if (dto.StartTime < DateTime.Now.AddHours(1))
-                return "Bạn chỉ có thể cập nhật đặt lịch nếu thời gian bắt đầu còn ít nhất 1 tiếng.";
+            if (booking.Status is "InProgress" or "Completed")
+                return "Không thể cập nhật khi đặt lịch đã bắt đầu hoặc đã hoàn tất.";
 
-            // 🔎 Kiểm tra xe
+            if (dto.StartTime >= dto.EndTime) return "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.";
+            if (dto.StartTime < DateTime.Now.AddHours(1)) return "Bạn chỉ có thể cập nhật đặt lịch nếu thời gian bắt đầu còn ít nhất 1 tiếng.";
+
             var vehicle = await _db.Vehicles.FindAsync(dto.VehicleId);
-            if (vehicle == null)
-                return "Không tìm thấy xe.";
+            if (vehicle == null) return "Không tìm thấy xe.";
 
-            // 🔎 Kiểm tra cổng sạc
-            var port = await _db.Ports.FindAsync(dto.PortId);
-            if (port == null)
-                return "Không tìm thấy cổng sạc.";
+            await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
 
-            // ⚠️ Kiểm tra tương thích đầu nối
-            if (!string.Equals(vehicle.ConnectorType, port.ConnectorType, StringComparison.OrdinalIgnoreCase))
-                return $"Xe ({vehicle.ConnectorType}) không tương thích với cổng sạc ({port.ConnectorType}).";
+            var newPort = await _db.Ports.FirstOrDefaultAsync(p => p.PortId == dto.PortId);
+            if (newPort == null) return "Không tìm thấy cổng sạc.";
 
-            // ⚠️ Kiểm tra trùng giờ khác
-            var overlap = await _db.Bookings.AnyAsync(x =>
+            if (!IsConnectorCompatible(vehicle.ConnectorType, newPort.ConnectorType))
+                return $"Xe ({vehicle.ConnectorType}) không tương thích với cổng sạc ({newPort.ConnectorType}).";
+
+            if (string.Equals(newPort.Status, "InUse", StringComparison.OrdinalIgnoreCase))
+                return "Cổng sạc hiện đang sử dụng.";
+
+            // Kiểm tra trùng giờ với các booking khác
+            bool conflict = await _db.Bookings.AnyAsync(x =>
                 x.PortId == dto.PortId &&
                 x.BookingId != id &&
+                x.Status != "Cancelled" &&
                 dto.StartTime < x.EndTime &&
                 dto.EndTime > x.StartTime);
-            if (overlap)
-                return "Khoảng thời gian này đã được đặt trước.";
 
-            // 🔹 Tính lại giá
-            var price = CalculatePrice(dto.StartTime, dto.EndTime, vehicle.VehicleType);
+            if (conflict) return "Khoảng thời gian này đã được đặt trước.";
 
-            b.VehicleId = dto.VehicleId;
-            b.PortId = dto.PortId;
-            b.StartTime = dto.StartTime;
-            b.EndTime = dto.EndTime;
-            b.Price = price;
-            b.Status = dto.Status;
-            b.UpdatedAt = DateTime.Now;
+            // Nếu đổi Port, giải phóng port cũ (nếu còn Reserved và không có booking khác đè)
+            if (booking.PortId != dto.PortId)
+            {
+                var oldPort = await _db.Ports.FirstOrDefaultAsync(p => p.PortId == booking.PortId);
+                if (oldPort != null && string.Equals(oldPort.Status, "Reserved", StringComparison.OrdinalIgnoreCase))
+                {
+                    bool stillOther = await _db.Bookings.AnyAsync(x =>
+                         x.PortId == oldPort.PortId &&
+                         x.BookingId != booking.BookingId &&
+                        (x.Status == "Pending" || x.Status == "Confirmed")
+                );
+                    if (!stillOther)
+                        oldPort.Status = "Available";
 
-            await _repo.UpdateAsync(b);
+                }
+
+                // Đặt cổng mới sang Reserved
+                if (!string.Equals(newPort.Status, "InUse", StringComparison.OrdinalIgnoreCase))
+                    newPort.Status = "Reserved";
+            }
+
+            var newPrice = CalculatePrice(dto.StartTime, dto.EndTime, vehicle.VehicleType);
+
+            booking.VehicleId = dto.VehicleId;
+            booking.PortId = dto.PortId;
+            booking.StartTime = dto.StartTime;
+            booking.EndTime = dto.EndTime;
+            booking.Price = newPrice;
+            booking.Status = dto.Status; // vẫn cho đổi (Pending/Confirmed/Cancelled)
+            booking.UpdatedAt = DateTime.Now;
+
+            await _repo.UpdateAsync(booking);
             await _repo.SaveAsync();
 
-            return $"Cập nhật đặt lịch thành công! Giá mới: {price:N0} VNĐ";
+            await tx.CommitAsync();
+            return $"Cập nhật đặt lịch thành công! Giá mới: {newPrice:N0} VNĐ";
         }
 
         // ===========================
-        // 🔹 Xóa Booking
+        // 🗑️ Xóa
         // ===========================
         public async Task<string> DeleteAsync(int id)
         {
-            var b = await _repo.GetByIdAsync(id);
-            if (b == null)
-                return "Không tìm thấy đặt lịch.";
+            var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.BookingId == id);
+            if (booking == null) return "Không tìm thấy đặt lịch.";
 
-            await _repo.DeleteAsync(b);
+            if (booking.Status is "InProgress")
+                return "Không thể xóa khi đặt lịch đang diễn ra.";
+            if (booking.Status is "Completed")
+                return "Không thể xóa đặt lịch đã hoàn tất.";
+
+            await using var tx = await _db.Database.BeginTransactionAsync();
+
+            // Giải phóng port nếu đang Reserved và không còn ai xếp chỗ
+            var port = await _db.Ports.FirstOrDefaultAsync(p => p.PortId == booking.PortId);
+            if (port != null && string.Equals(port.Status, "Reserved", StringComparison.OrdinalIgnoreCase))
+            {
+                bool other = await _db.Bookings.AnyAsync(x =>
+                     x.BookingId != booking.BookingId &&
+                     x.PortId == port.PortId &&
+                    (x.Status == "Pending" || x.Status == "Confirmed")
+                  );
+                if (!other)
+                    port.Status = "Available";
+
+            }
+
+            await _repo.DeleteAsync(booking);
             await _repo.SaveAsync();
 
+            await tx.CommitAsync();
             return "Xóa đặt lịch thành công!";
         }
 
         // ===========================
-        // 🔹 Đổi trạng thái Booking
+        // 🔁 Đổi trạng thái + đồng bộ Port
         // ===========================
         public async Task<string> ChangeStatusAsync(int id, string newStatus)
         {
-            var booking = await _repo.GetByIdAsync(id);
-            if (booking == null)
-                return "Không tìm thấy đặt lịch.";
+            var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.BookingId == id);
+            if (booking == null) return "Không tìm thấy đặt lịch.";
 
-            var validStatuses = new[] { "Pending", "Confirmed", "InProgress", "Completed", "Cancelled" };
-            if (!validStatuses.Contains(newStatus))
-                return "Trạng thái không hợp lệ.";
+            var valid = new[] { "Pending", "Confirmed", "InProgress", "Completed", "Cancelled" };
+            if (!valid.Contains(newStatus)) return "Trạng thái không hợp lệ.";
 
-            if (booking.Status == "Cancelled")
-                return "Đặt lịch đã bị hủy, không thể thay đổi trạng thái.";
-            if (booking.Status == "Completed")
-                return "Đặt lịch đã hoàn tất, không thể thay đổi.";
+            await using var tx = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+
+            var port = await _db.Ports.FirstOrDefaultAsync(p => p.PortId == booking.PortId);
+            if (port == null) return "Không tìm thấy cổng sạc.";
+
+            // Quy tắc chuyển trạng thái + Port
+            string old = booking.Status;
+
+            // Không cho đổi từ Completed/Cancelled sang trạng thái khác
+            if (old is "Completed" or "Cancelled")
+                return "Đặt lịch đã kết thúc hoặc bị hủy, không thể thay đổi.";
+
+            switch (newStatus)
+            {
+                case "Pending":
+                    // quay về Pending -> Reserved
+                    if (!string.Equals(port.Status, "InUse", StringComparison.OrdinalIgnoreCase))
+                        port.Status = "Reserved";
+                    break;
+
+                case "Confirmed":
+                    // giữ Reserved
+                    if (!string.Equals(port.Status, "InUse", StringComparison.OrdinalIgnoreCase))
+                        port.Status = "Reserved";
+                    break;
+
+                case "InProgress":
+                    // chỉ cho phép khi gần StartTime (ví dụ: trong vòng -15..+60 phút)
+                    var now = DateTime.Now;
+                    if (booking.StartTime.HasValue &&
+                        now < booking.StartTime.Value.AddMinutes(-15))
+                        return "Chưa đến thời gian bắt đầu sạc.";
+                    // chuyển cổng sang InUse
+                    port.Status = "InUse";
+                    break;
+
+                case "Completed":
+                    // kết thúc -> port Available (nếu không còn ai đặt)
+                    port.Status = await HasOtherReservations(port.PortId, excludeBookingId: booking.BookingId)
+                        ? "Reserved"
+                        : "Available";
+                    break;
+
+                case "Cancelled":
+                    // hủy -> port Available nếu không còn booking khác
+                    port.Status = await HasOtherReservations(port.PortId, excludeBookingId: booking.BookingId)
+                        ? "Reserved"
+                        : "Available";
+                    break;
+            }
 
             booking.Status = newStatus;
             booking.UpdatedAt = DateTime.Now;
@@ -249,31 +332,70 @@ namespace Services.Implementations
             await _repo.UpdateAsync(booking);
             await _repo.SaveAsync();
 
-            return $"Đã đổi trạng thái đặt lịch #{booking.BookingId} thành '{newStatus}'.";
+            await tx.CommitAsync();
+            return $"Đã đổi trạng thái đặt lịch #{booking.BookingId} từ '{old}' → '{newStatus}'.";
         }
 
         // ===========================
-        // 🔹 Hàm tính giá cơ bản
+        // 🕒 Dọn dẹp: auto-cancel nếu khách không đến
+        // (Gọi từ background job mỗi 5-10 phút)
         // ===========================
-        private decimal CalculatePrice(DateTime? start, DateTime? end, string vehicleType)
+        public async Task<int> AutoExpireNoShowAsync(int graceMinutes = 15)
         {
-            if (start == null || end == null)
-                return 0;
+            var now = DateTime.Now;
+            var toCancel = await _db.Bookings
+                .Where(b => b.Status == "Pending" && b.StartTime < now.AddMinutes(-graceMinutes))
+                .ToListAsync();
 
-            var duration = end.Value - start.Value;
-            var hours = Math.Ceiling(duration.TotalHours); // Làm tròn lên
-
-            decimal rate = 20000m; // Mặc định cho xe máy
-
-            if (!string.IsNullOrEmpty(vehicleType))
+            foreach (var b in toCancel)
             {
-                var type = vehicleType.Trim().ToLower();
-                if (type == "car")
-                    rate = 40000m;
-                else if (type == "motorbike")
-                    rate = 20000m;
+                var port = await _db.Ports.FirstOrDefaultAsync(p => p.PortId == b.PortId);
+                b.Status = "Cancelled";
+                b.UpdatedAt = now;
+
+                if (port != null)
+                {
+                    port.Status = await HasOtherReservations(port.PortId, excludeBookingId: b.BookingId)
+                        ? "Reserved"
+                        : "Available";
+                }
             }
 
+            return await _db.SaveChangesAsync();
+        }
+
+        // ===========================
+        // 🔧 Helpers
+        // ===========================
+        private bool IsConnectorCompatible(string vehicleConnector, string portConnector)
+        {
+            if (string.IsNullOrWhiteSpace(vehicleConnector) || string.IsNullOrWhiteSpace(portConnector))
+                return false;
+            return vehicleConnector.Trim().Equals(portConnector.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task<bool> HasOtherReservations(int portId, int excludeBookingId)
+        {
+            return await _db.Bookings.AnyAsync(x =>
+                x.PortId == portId &&
+                x.BookingId != excludeBookingId &&
+                (x.Status == "Pending" || x.Status == "Confirmed")
+            );
+        }
+
+
+        private decimal CalculatePrice(DateTime? start, DateTime? end, string vehicleType)
+        {
+            if (start == null || end == null) return 0;
+            var hours = Math.Ceiling((end.Value - start.Value).TotalHours);
+
+            decimal rate = 20000m;
+            if (!string.IsNullOrEmpty(vehicleType))
+            {
+                var t = vehicleType.Trim().ToLower();
+                if (t == "car") rate = 40000m;
+                else if (t == "motorbike") rate = 20000m;
+            }
             return (decimal)hours * rate;
         }
     }
