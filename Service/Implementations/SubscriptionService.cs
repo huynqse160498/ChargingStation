@@ -45,7 +45,7 @@ namespace Services.Implementations
                 StartDate = dto.StartDate,
                 BillingCycle = dto.BillingCycle,
                 AutoRenew = dto.AutoRenew,
-                Status = dto.Status,
+                Status = (dto.Status == "Inactive") ? "Inactive" : "Active",
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now,
                 EndDate = dto.BillingCycle == "Yearly"

@@ -17,6 +17,9 @@ namespace Repositories.DTOs.Subscriptions
         public bool AutoRenew { get; set; } = true;
 
         public DateTime StartDate { get; set; } = DateTime.Now;
+
+
+        [RegularExpression("Active|Inactive")]
         public string Status { get; set; } = "Active";
     }
 }
