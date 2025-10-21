@@ -10,7 +10,7 @@
             public string Description { get; set; }
             public string Category { get; set; } // "Individual" hoặc "Business"
             public decimal PriceMonthly { get; set; }
-            public decimal? PriceYearly { get; set; }
+            //public decimal? PriceYearly { get; set; }
             public decimal? DiscountPercent { get; set; }
             public int? FreeIdleMinutes { get; set; }
             public string Benefits { get; set; }

@@ -13,7 +13,6 @@ namespace Repositories.DTOs.SubscriptionPlans
         public string Description { get; set; } = string.Empty;
         public string Category { get; set; } = "Individual";
         public decimal PriceMonthly { get; set; }
-        public decimal? PriceYearly { get; set; }
         public decimal? DiscountPercent { get; set; }
         public int? FreeIdleMinutes { get; set; }
         public string Benefits { get; set; } = string.Empty;

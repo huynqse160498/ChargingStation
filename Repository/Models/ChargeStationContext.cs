@@ -239,7 +239,7 @@ namespace Repositories.Models
                 entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("Active");
                 entity.Property(e => e.Benefits).HasMaxLength(500);
                 entity.Property(e => e.PriceMonthly).HasColumnType("decimal(12,2)");
-                entity.Property(e => e.PriceYearly).HasColumnType("decimal(12,2)");
+                //entity.Property(e => e.PriceYearly).HasColumnType("decimal(12,2)");
                 entity.Property(e => e.DiscountPercent).HasColumnType("decimal(5,2)");
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
