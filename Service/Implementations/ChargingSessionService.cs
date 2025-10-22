@@ -1,8 +1,8 @@
-﻿using Repositories.DTOs;
+﻿using Microsoft.EntityFrameworkCore;
+using Repositories.DTOs;
 using Repositories.Interfaces;
 using Repositories.Models;
 using Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace Services.Implementations
 {
@@ -65,7 +65,6 @@ namespace Services.Implementations
                 portId = booking.PortId;
                 vehicleId = booking.VehicleId;
 
-                // Đánh dấu booking đang sử dụng
                 booking.Status = "InProgress";
                 await _bookingRepo.UpdateAsync(booking);
             }
@@ -79,9 +78,8 @@ namespace Services.Implementations
                     ?? throw new Exception("Không tìm thấy cổng sạc.");
 
                 if (port.Status != "Available")
-                    throw new Exception("Cổng sạc không khả dụng.");
+                    throw new Exception("Cổng sạc đang được sử dụng hoặc bị khóa.");
 
-                // Chuyển trạng thái cổng sang đang sử dụng
                 port.Status = "InUse";
                 await _portRepo.UpdateAsync(port);
 
@@ -89,17 +87,16 @@ namespace Services.Implementations
                 vehicleId = dto.VehicleId;
             }
 
-            // 3️⃣ Xác định PricingRule
+            // 3️⃣ Xác định PricingRule theo Charger
             var portEntity = await _portRepo.GetByIdAsync(portId)
-                ?? throw new Exception("Không tìm thấy port.");
+                ?? throw new Exception("Không tìm thấy Port.");
             var charger = portEntity.Charger
-                ?? throw new Exception("Không tìm thấy charger.");
+                ?? throw new Exception("Không tìm thấy Charger của port.");
             var vehicle = await _vehicleRepo.GetByIdAsync(vehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
             string timeRange = GetCurrentTimeRange();
 
-            // Lấy PricingRule phù hợp theo ChargerType + PowerKw + TimeRange
             var rule = await _pricingRepo.GetAll()
                 .Where(x =>
                     x.ChargerType == charger.Type &&
@@ -107,12 +104,12 @@ namespace Services.Implementations
                     x.TimeRange == timeRange &&
                     x.Status == "Active")
                 .FirstOrDefaultAsync()
-                ?? throw new Exception($"Không tìm thấy PricingRule cho {charger.Type} - {charger.PowerKw}kW ({timeRange}).");
+                ?? throw new Exception($"Không có PricingRule cho {charger.Type} - {charger.PowerKw}kW ({timeRange}).");
 
             // 4️⃣ Tạo mới phiên sạc
             var session = new ChargingSession
             {
-                BookingId = dto.BookingId, // null nếu không có booking
+                BookingId = dto.BookingId, // có thể null
                 CustomerId = customerId,
                 VehicleId = vehicleId,
                 PortId = portId,
@@ -124,15 +121,6 @@ namespace Services.Implementations
             };
 
             await _sessionRepo.AddAsync(session);
-
-            // Đảm bảo port trạng thái "InUse"
-            var portToUpdate = await _portRepo.GetByIdAsync(portId);
-            if (portToUpdate != null)
-            {
-                portToUpdate.Status = "InUse";
-                await _portRepo.UpdateAsync(portToUpdate);
-            }
-
             return session;
         }
 
@@ -147,12 +135,28 @@ namespace Services.Implementations
             var rule = await _pricingRepo.GetByIdAsync(session.PricingRuleId)
                 ?? throw new Exception("Không tìm thấy PricingRule.");
 
-            int endSoc = dto.EndSoc ?? new Random().Next((session.StartSoc ?? 50) + 10, 101);
+            var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
+                ?? throw new Exception("Không tìm thấy xe cho phiên sạc này.");
+
+            if (vehicle.BatteryCapacity == null || vehicle.BatteryCapacity <= 0)
+                throw new Exception("Dung lượng pin (BatteryCapacity) của xe không hợp lệ.");
+
+            int startSoc = session.StartSoc ?? 50;
+            int endSoc = dto.EndSoc ?? new Random().Next(startSoc + 10, 101);
+
+            if (endSoc <= startSoc)
+                throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
+
+            // ✅ Năng lượng sạc thực tế (kWh)
+            session.EnergyKwh = Math.Round(
+                (vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M),
+                2
+            );
+
             session.EndSoc = endSoc;
             session.EndedAt = DateTime.Now;
             session.DurationMin = (int)(DateTime.Now - session.StartedAt!.Value).TotalMinutes;
             session.IdleMin = _rand.Next(0, 10);
-            session.EnergyKwh = Math.Round(((endSoc - (session.StartSoc ?? 50)) * 0.4M), 2);
 
             // 💰 Tính tiền
             session.Subtotal = session.EnergyKwh * rule.PricePerKwh + session.IdleMin * rule.IdleFeePerMin;
@@ -163,7 +167,7 @@ namespace Services.Implementations
 
             await _sessionRepo.UpdateAsync(session);
 
-            // 🔓 Giải phóng port
+            // 🔓 Giải phóng cổng
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
             {
@@ -171,7 +175,7 @@ namespace Services.Implementations
                 await _portRepo.UpdateAsync(port);
             }
 
-            // 🧾 Cập nhật booking (nếu có)
+            // 🧾 Cập nhật Booking (nếu có)
             if (session.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(session.BookingId.Value);
@@ -182,7 +186,7 @@ namespace Services.Implementations
                 }
             }
 
-            // 💳 Thêm vào hóa đơn tháng
+            // 💳 Gắn vào hóa đơn tháng
             var now = DateTime.Now;
             var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(session.CustomerId, now.Month, now.Year);
             invoice.ChargingSessions.Add(session);
@@ -192,8 +196,10 @@ namespace Services.Implementations
             return session;
         }
 
+
+
         // ============================================================
-        // 🔹 CRUD cơ bản
+        // 🔹 CRUD
         // ============================================================
         public async Task<List<ChargingSession>> GetAllAsync() => await _sessionRepo.GetAllAsync();
         public async Task<ChargingSession?> GetByIdAsync(int id) => await _sessionRepo.GetByIdAsync(id);

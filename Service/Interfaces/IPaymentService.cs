@@ -1,14 +1,13 @@
-﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Repositories.DTOs;
+using System.Threading.Tasks;
 
 namespace Services.Interfaces
 {
     public interface IPaymentService
     {
-   
-        string CreatePaymentUrl(PaymentCreateDto dto, string ipAddress);
-
+       
+        Task<string> CreatePaymentUrl(PaymentCreateDto dto, string ipAddress);
 
         Task<string> HandleCallbackAsync(IQueryCollection query);
     }

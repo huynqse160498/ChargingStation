@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Repositories.Models;
 
@@ -11,9 +12,11 @@ using Repositories.Models;
 namespace Repositories.Migrations
 {
     [DbContext(typeof(ChargeStationContext))]
-    partial class ChargeStationContextModelSnapshot : ModelSnapshot
+    [Migration("20251022184833_UpdateInvoiceForCompanyAndCustomer")]
+    partial class UpdateInvoiceForCompanyAndCustomer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -920,7 +923,7 @@ namespace Repositories.Migrations
             modelBuilder.Entity("Repositories.Models.Invoice", b =>
                 {
                     b.HasOne("Repositories.Models.Company", "Company")
-                        .WithMany("Invoices")
+                        .WithMany()
                         .HasForeignKey("CompanyId");
 
                     b.HasOne("Repositories.Models.Customer", "Customer")
@@ -1038,8 +1041,6 @@ namespace Repositories.Migrations
                     b.Navigation("Bookings");
 
                     b.Navigation("Customers");
-
-                    b.Navigation("Invoices");
 
                     b.Navigation("Subscriptions");
 

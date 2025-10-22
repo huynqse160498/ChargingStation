@@ -5,9 +5,9 @@ namespace Repositories.DTOs
     // 🧾 DTO dùng khi tạo thanh toán
     public class PaymentCreateDto
     {
-        [Required(ErrorMessage = "Vui lòng nhập mã đặt lịch.")]
-        public int BookingId { get; set; }
-
+        public int? BookingId { get; set; }
+        public int? InvoiceId { get; set; } // 🔗 Hóa đơn tháng
+        public int? CompanyId { get; set; }  // nếu công ty thanh toán
         public string? Description { get; set; }
     }
 

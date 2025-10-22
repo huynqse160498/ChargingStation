@@ -24,7 +24,9 @@ namespace WebAPI.Controllers
             _config = config;
         }
 
-        // ====================== 1️⃣ Tạo thanh toán ======================
+        // =====================================================
+        // 🔹 1️⃣ Tạo URL thanh toán (Booking / Invoice / Company)
+        // =====================================================
         [HttpPost("create")]
         public IActionResult Create([FromBody] PaymentCreateDto dto)
         {
@@ -38,16 +40,20 @@ namespace WebAPI.Controllers
             {
                 success = true,
                 message = "Tạo URL thanh toán thành công.",
-                paymentUrl = url
+                paymentUrl = url,
+                type = dto.BookingId.HasValue ? "Booking" :
+                        dto.InvoiceId.HasValue ? "Invoice" :
+                        "Unknown"
             });
         }
 
-        // ====================== 2️⃣ Xử lý callback thực tế (Redirect sang FE) ======================
+        // =====================================================
+        // 🔹 2️⃣ Callback (GET) — VNPay redirect về sau thanh toán
+        // =====================================================
         [HttpGet("vnpay-callback")]
         [AllowAnonymous]
         public async Task<IActionResult> VnPayCallback()
         {
-            // 🟢 URL Frontend (đặt cứng hoặc lấy từ appsettings.json)
             var successUrl = _config["VnPay:FrontEndSuccessUrl"] ?? "http://localhost:5173/payment/success";
             var failUrl = _config["VnPay:FrontEndFailUrl"] ?? "http://localhost:5173/payment/failure";
 
@@ -61,44 +67,61 @@ namespace WebAPI.Controllers
                 {
                     var msg = await _paymentService.HandleCallbackAsync(Request.Query);
 
-                    // ✅ Lấy bookingId từ vnp_OrderInfo
+                    // ✅ Tách loại giao dịch và ID
                     var orderInfo = Request.Query["vnp_OrderInfo"].ToString();
-                    int bookingId = 0;
-                    if (orderInfo.Contains('#'))
-                        int.TryParse(orderInfo.Split('#')[1], out bookingId);
+                    string type = "Unknown";
+                    int id = 0;
 
-                    // ✅ Redirect về FE khi thanh toán thành công
-                    return Redirect($"{successUrl}?order={bookingId}&txnRef={txnRef}&success=true");
+                    if (orderInfo.Contains("booking"))
+                    {
+                        type = "Booking";
+                        int.TryParse(orderInfo.Split('#')[1], out id);
+                    }
+                    else if (orderInfo.Contains("hóa đơn") || orderInfo.Contains("invoice"))
+                    {
+                        type = "Invoice";
+                        int.TryParse(orderInfo.Split('#')[1], out id);
+                    }
+
+                    // Redirect sang FE
+                    return Redirect($"{successUrl}?type={type}&id={id}&txnRef={txnRef}&success=true");
                 }
 
-                // ❌ Redirect về FE khi thất bại
+                // ❌ Nếu thanh toán thất bại
                 return Redirect($"{failUrl}?success=false&reason=payment_failed");
             }
             catch (Exception ex)
             {
-                // ❌ Nếu lỗi trong BE → redirect về FE luôn
+                // ❌ Nếu BE có lỗi
                 return Redirect($"{failUrl}?success=false&reason={Uri.EscapeDataString(ex.Message)}");
             }
         }
 
-        // ====================== 3️⃣ VNPay gọi POST (optional) ======================
+        // =====================================================
+        // 🔹 3️⃣ Callback POST — VNPay gọi webhook nội bộ (tuỳ chọn)
+        // =====================================================
         [HttpPost("vnpay-callback")]
         [AllowAnonymous]
         public Task<IActionResult> VnPayCallbackPost() => VnPayCallback();
 
-        // ====================== 4️⃣ API Test callback (sandbox/local test) ======================
+        // =====================================================
+        // 🔹 4️⃣ API test (giả lập callback — test sandbox/local)
+        // =====================================================
         [HttpPost("vnpay-callback-test")]
-        public async Task<IActionResult> TestCallback([FromBody] int bookingId)
+        public async Task<IActionResult> TestCallback([FromBody] PaymentCreateDto dto)
         {
-            if (bookingId <= 0)
-                return BadRequest(new { success = false, message = "Thiếu hoặc sai BookingId" });
+            if (dto.BookingId == null && dto.InvoiceId == null)
+                return BadRequest(new { success = false, message = "Thiếu BookingId hoặc InvoiceId." });
 
-            // Giả lập callback thành công
+            string orderInfo = dto.BookingId.HasValue
+                ? $"Thanh toán booking #{dto.BookingId}"
+                : $"Thanh toán hóa đơn #{dto.InvoiceId}";
+
             var fakeQuery = new QueryCollection(new System.Collections.Generic.Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
                 { "vnp_ResponseCode", "00" },
                 { "vnp_TransactionStatus", "00" },
-                { "vnp_OrderInfo", $"Booking#{bookingId}" },
+                { "vnp_OrderInfo", orderInfo },
                 { "vnp_Amount", "200000" },
                 { "vnp_SecureHash", "FAKEHASH" },
                 { "vnp_TxnRef", Guid.NewGuid().ToString("N").Substring(0,10) }
@@ -110,7 +133,7 @@ namespace WebAPI.Controllers
             {
                 success = true,
                 message = msg,
-                bookingId
+                type = dto.BookingId.HasValue ? "Booking" : "Invoice"
             });
         }
     }

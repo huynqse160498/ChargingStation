@@ -12,20 +12,20 @@ namespace Repositories.Implementations
         private readonly ChargeStationContext _context;
         public PortRepository(ChargeStationContext context) => _context = context;
 
-        // ✅ Lấy tất cả port (bao gồm thông tin Charger)
+        // ✅ Lấy tất cả port (kèm Charger)
         public async Task<List<Port>> GetAllAsync()
         {
             return await _context.Ports
-                .Include(p => p.Charger) // cần cho việc xác định type, power
+                .Include(p => p.Charger)
                 .AsNoTracking()
                 .ToListAsync();
         }
 
-        // ✅ Lấy chi tiết 1 port (bao gồm Charger)
+        // ✅ Lấy chi tiết 1 port (kèm Charger)
         public async Task<Port?> GetByIdAsync(int id)
         {
             return await _context.Ports
-                .Include(p => p.Charger) // cần cho ChargingSessionService
+                .Include(p => p.Charger)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.PortId == id);
         }
@@ -37,10 +37,16 @@ namespace Repositories.Implementations
             await _context.SaveChangesAsync();
         }
 
-        // ✅ Cập nhật
+        // ✅ Cập nhật (fix lỗi entity tracking trùng lặp)
         public async Task UpdateAsync(Port port)
         {
-            _context.Ports.Update(port);
+            // Gỡ entity trùng trong Local Tracking nếu có
+            var local = _context.Ports.Local.FirstOrDefault(e => e.PortId == port.PortId);
+            if (local != null)
+                _context.Entry(local).State = EntityState.Detached;
+
+            // Gắn lại entity để update
+            _context.Entry(port).State = EntityState.Modified;
             await _context.SaveChangesAsync();
         }
 
@@ -58,29 +64,13 @@ namespace Repositories.Implementations
                 .Where(p => p.ChargerId == chargerId && p.ConnectorType == connectorType);
             if (ignoreId.HasValue)
                 q = q.Where(p => p.PortId != ignoreId.Value);
-
             return await q.AnyAsync();
         }
 
-        // ✅ Lấy số lượng port theo điều kiện (phục vụ phân trang)
-        public async Task<int> CountAsync(int? chargerId, string? status)
-        {
-            var q = _context.Ports.AsQueryable();
-            if (chargerId.HasValue)
-                q = q.Where(p => p.ChargerId == chargerId.Value);
-            if (!string.IsNullOrWhiteSpace(status))
-                q = q.Where(p => p.Status == status.Trim());
-            return await q.CountAsync();
-        }
-
-        // ✅ Phân trang port
+        // ✅ Phân trang
         public async Task<List<Port>> GetPagedAsync(int page, int pageSize, int? chargerId, string? status)
         {
-            var q = _context.Ports
-                .Include(p => p.Charger)
-                .AsNoTracking()
-                .AsQueryable();
-
+            var q = _context.Ports.Include(p => p.Charger).AsNoTracking().AsQueryable();
             if (chargerId.HasValue)
                 q = q.Where(p => p.ChargerId == chargerId.Value);
             if (!string.IsNullOrWhiteSpace(status))
@@ -92,9 +82,13 @@ namespace Repositories.Implementations
                 .ToListAsync();
         }
 
-        // ✅ Cập nhật trạng thái port (Available / Reserved / InUse / Disabled)
+        // ✅ Cập nhật trạng thái Port
         public async Task<bool> UpdateStatusAsync(int id, string status)
         {
+            var local = _context.Ports.Local.FirstOrDefault(e => e.PortId == id);
+            if (local != null)
+                _context.Entry(local).State = EntityState.Detached;
+
             var entity = await _context.Ports.FirstOrDefaultAsync(p => p.PortId == id);
             if (entity == null) return false;
 
@@ -103,18 +97,18 @@ namespace Repositories.Implementations
             await _context.SaveChangesAsync();
             return true;
         }
-
-        // ✅ Lấy danh sách các port đang Available (phục vụ FE)
-        public async Task<List<Port>> GetAvailablePortsAsync()
+        public async Task<int> CountAsync(int? chargerId, string? status)
         {
-            return await _context.Ports
-                .Include(p => p.Charger)
-                .Where(p => p.Status == "Available")
-                .AsNoTracking()
-                .ToListAsync();
-        }
+            var q = _context.Ports.AsQueryable();
 
-        // ✅ Lưu thay đổi
+            if (chargerId.HasValue)
+                q = q.Where(p => p.ChargerId == chargerId.Value);
+
+            if (!string.IsNullOrWhiteSpace(status))
+                q = q.Where(p => p.Status == status.Trim());
+
+            return await q.CountAsync();
+        }
         public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
     }
 }

@@ -17,21 +17,53 @@ namespace Services.Implementations
     {
         private readonly IConfiguration _config;
         private readonly IBookingRepository _bookingRepo;
+        private readonly IInvoiceRepository _invoiceRepo;
         private readonly ILogger<VnPayService> _logger;
 
-        public VnPayService(IConfiguration config, IBookingRepository bookingRepo, ILogger<VnPayService> logger)
+        public VnPayService(
+            IConfiguration config,
+            IBookingRepository bookingRepo,
+            IInvoiceRepository invoiceRepo,
+            ILogger<VnPayService> logger)
         {
             _config = config;
             _bookingRepo = bookingRepo;
+            _invoiceRepo = invoiceRepo;
             _logger = logger;
         }
 
-        // 🧾 Tạo URL thanh toán VNPay
-        public string CreatePaymentUrl(PaymentCreateDto dto, string ipAddress, string txnRef)
+        // 🧾 Tạo URL thanh toán VNPay (Booking hoặc Invoice)
+        public async Task<string> CreatePaymentUrl(PaymentCreateDto dto, string ipAddress, string txnRef)
         {
-            var booking = _bookingRepo.GetByIdAsync(dto.BookingId).Result;
-            if (booking == null || booking.Price == null)
-                throw new Exception("Không tìm thấy Booking hoặc giá chưa có.");
+            decimal amount = 0;
+            string orderInfo;
+
+            if (dto.BookingId.HasValue)
+            {
+                var booking = await _bookingRepo.GetByIdAsync(dto.BookingId.Value)
+                    ?? throw new Exception($"Không tìm thấy Booking #{dto.BookingId}");
+
+                if (booking.Price == null)
+                    throw new Exception("Booking chưa có giá để thanh toán.");
+
+                amount = booking.Price.Value;
+                orderInfo = $"Thanh toán booking #{booking.BookingId}";
+            }
+            else if (dto.InvoiceId.HasValue)
+            {
+                var invoice = await _invoiceRepo.GetByIdAsync(dto.InvoiceId.Value)
+                    ?? throw new Exception($"Không tìm thấy Hóa đơn #{dto.InvoiceId}");
+
+                if (invoice.Total == null || invoice.Total <= 0)
+                    throw new Exception("Hóa đơn không có tổng tiền để thanh toán.");
+
+                amount = invoice.Total.Value;
+                orderInfo = $"Thanh toán hóa đơn #{invoice.InvoiceId}";
+            }
+            else
+            {
+                throw new Exception("Thiếu BookingId hoặc InvoiceId khi tạo thanh toán.");
+            }
 
             var tmnCode = _config["VnPay:TmnCode"];
             var secret = (_config["VnPay:HashSecret"] ?? string.Empty).Trim();
@@ -41,29 +73,27 @@ namespace Services.Implementations
             var now = DateTime.UtcNow.AddHours(7);
             var expire = now.AddMinutes(15);
 
-            // ❌ KHÔNG được có vnp_SecureHashType trong tập ký
             var vnpParams = new SortedDictionary<string, string>
             {
                 ["vnp_Version"] = "2.1.0",
                 ["vnp_Command"] = "pay",
                 ["vnp_TmnCode"] = tmnCode,
-                ["vnp_Amount"] = ((long)(booking.Price.Value * 100)).ToString(), // nhân 100
+                ["vnp_Amount"] = ((long)(amount * 100)).ToString(),
                 ["vnp_CreateDate"] = now.ToString("yyyyMMddHHmmss"),
                 ["vnp_ExpireDate"] = expire.ToString("yyyyMMddHHmmss"),
                 ["vnp_CurrCode"] = "VND",
                 ["vnp_IpAddr"] = string.IsNullOrWhiteSpace(ipAddress) ? "127.0.0.1" : ipAddress,
                 ["vnp_Locale"] = "vn",
-                ["vnp_OrderInfo"] = $"Thanh toán booking #{booking.BookingId}",
+                ["vnp_OrderInfo"] = orderInfo,
                 ["vnp_OrderType"] = "other",
                 ["vnp_ReturnUrl"] = returnUrl,
                 ["vnp_TxnRef"] = txnRef
             };
 
-            // 🔐 Tạo chữ ký
+            // 🔐 Tạo chữ ký SHA512
             var signData = BuildDataToSign(vnpParams);
             var secureHash = ComputeHmacSha512(secret, signData);
 
-            // ✅ Gộp URL cuối cùng (lúc này mới thêm SecureHashType)
             var query = string.Join("&", vnpParams.Select(kv => $"{kv.Key}={FormEncodeUpper(kv.Value)}"));
             var finalUrl = $"{baseUrl}?{query}&vnp_SecureHashType=HMACSHA512&vnp_SecureHash={secureHash}";
 
@@ -84,7 +114,6 @@ namespace Services.Implementations
             var secret = (_config["VnPay:HashSecret"] ?? string.Empty).Trim();
             var fromVnp = vnpParams["vnp_SecureHash"].ToString();
 
-            // Chỉ lấy các tham số bắt đầu bằng vnp_ (trừ SecureHash & Type)
             var data = vnpParams
                 .Where(kv => kv.Key.StartsWith("vnp_", StringComparison.Ordinal))
                 .Where(kv => kv.Key != "vnp_SecureHash" && kv.Key != "vnp_SecureHashType")
@@ -103,7 +132,6 @@ namespace Services.Implementations
 
         // ==================== Helpers ====================
 
-        // Encode URL theo chuẩn VNPay (uppercase HEX)
         private static string FormEncodeUpper(string? value)
         {
             var encoded = HttpUtility.UrlEncode(value ?? string.Empty, Encoding.UTF8) ?? string.Empty;

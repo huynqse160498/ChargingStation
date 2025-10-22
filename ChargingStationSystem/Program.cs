@@ -73,7 +73,7 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<ICompanyRepository, CompanyRepository>();
             builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
             builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
-            //builder.Services.AddScoped<IInvoiceService, InvoiceService>();
+            builder.Services.AddScoped<IInvoiceService, InvoiceService>();
             builder.Services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
             builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 
