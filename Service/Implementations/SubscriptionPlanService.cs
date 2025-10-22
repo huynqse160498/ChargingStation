@@ -37,7 +37,7 @@ namespace Services.Implementations
                 Description = dto.Description ?? string.Empty,
                 Category = (dto.Category ?? "Individual").Trim(),
                 PriceMonthly = dto.PriceMonthly,
-                PriceYearly = dto.PriceYearly,
+                //PriceYearly = dto.PriceYearly,
                 DiscountPercent = dto.DiscountPercent,
                 FreeIdleMinutes = dto.FreeIdleMinutes,
                 Benefits = dto.Benefits ?? string.Empty,
@@ -64,7 +64,7 @@ namespace Services.Implementations
             if (dto.Description != null) e.Description = dto.Description;
             if (!string.IsNullOrWhiteSpace(dto.Category)) e.Category = dto.Category!;   
             if (dto.PriceMonthly is decimal pm) e.PriceMonthly = pm; //fix
-            if (dto.PriceYearly.HasValue) e.PriceYearly = dto.PriceYearly.Value;
+            //if (dto.PriceYearly.HasValue) e.PriceYearly = dto.PriceYearly.Value;
             if (dto.DiscountPercent.HasValue) e.DiscountPercent = dto.DiscountPercent.Value;
             if (dto.FreeIdleMinutes.HasValue) e.FreeIdleMinutes = dto.FreeIdleMinutes.Value;
             if (dto.Benefits != null) e.Benefits = dto.Benefits;
@@ -90,7 +90,7 @@ namespace Services.Implementations
             Description = x.Description,
             Category = x.Category,
             PriceMonthly = x.PriceMonthly,
-            PriceYearly = x.PriceYearly,
+            //PriceYearly = x.PriceYearly,
             DiscountPercent = x.DiscountPercent,
             FreeIdleMinutes = x.FreeIdleMinutes,
             Benefits = x.Benefits,

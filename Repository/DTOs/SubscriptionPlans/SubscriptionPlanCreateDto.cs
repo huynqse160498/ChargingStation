@@ -21,9 +21,6 @@ namespace Repositories.DTOs.SubscriptionPlans
         [Range(0, double.MaxValue)]
         public decimal PriceMonthly { get; set; }            
 
-        [Range(0, double.MaxValue)]
-        public decimal? PriceYearly { get; set; }           
-
         [Range(0, 100)]
         public decimal? DiscountPercent { get; set; }        
 
