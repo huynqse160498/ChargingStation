@@ -25,16 +25,16 @@ namespace WebAPI.Controllers
         }
 
         // =====================================================
-        // 🔹 1️⃣ Tạo URL thanh toán (Booking / Invoice / Company)
+        // 🔹 1️⃣ Tạo URL thanh toán (Booking / Invoice)
         // =====================================================
         [HttpPost("create")]
-        public IActionResult Create([FromBody] PaymentCreateDto dto)
+        public async Task<IActionResult> Create([FromBody] PaymentCreateDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
-            var url = _paymentService.CreatePaymentUrl(dto, ip);
+            var url = await _paymentService.CreatePaymentUrl(dto, ip);
 
             return Ok(new
             {
@@ -48,7 +48,28 @@ namespace WebAPI.Controllers
         }
 
         // =====================================================
-        // 🔹 2️⃣ Callback (GET) — VNPay redirect về sau thanh toán
+        // 🔹 2️⃣ Tạo URL thanh toán cho Subscription (manual renew)
+        // =====================================================
+        [HttpPost("create-subscription/{subscriptionId}")]
+        public async Task<IActionResult> CreateSubscriptionPayment([FromRoute] int subscriptionId)
+        {
+            if (subscriptionId <= 0)
+                return BadRequest(new { success = false, message = "Thiếu subscriptionId hợp lệ." });
+
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+            var url = await _paymentService.CreateSubscriptionPaymentUrl(subscriptionId, ip);
+
+            return Ok(new
+            {
+                success = true,
+                message = "Tạo URL thanh toán subscription thành công.",
+                paymentUrl = url,
+                subscriptionId
+            });
+        }
+
+        // =====================================================
+        // 🔹 3️⃣ Callback (GET) — VNPay redirect về sau thanh toán
         // =====================================================
         [HttpGet("vnpay-callback")]
         [AllowAnonymous]
@@ -66,56 +87,60 @@ namespace WebAPI.Controllers
                 if (isValid && code == "00" && status == "00")
                 {
                     var msg = await _paymentService.HandleCallbackAsync(Request.Query);
-
-                    // ✅ Tách loại giao dịch và ID
                     var orderInfo = Request.Query["vnp_OrderInfo"].ToString();
+
                     string type = "Unknown";
                     int id = 0;
 
-                    if (orderInfo.Contains("booking"))
+                    if (orderInfo.Contains("booking", StringComparison.OrdinalIgnoreCase))
                     {
                         type = "Booking";
                         int.TryParse(orderInfo.Split('#')[1], out id);
                     }
-                    else if (orderInfo.Contains("hóa đơn") || orderInfo.Contains("invoice"))
+                    else if (orderInfo.Contains("hóa đơn", StringComparison.OrdinalIgnoreCase) ||
+                             orderInfo.Contains("invoice", StringComparison.OrdinalIgnoreCase))
                     {
                         type = "Invoice";
                         int.TryParse(orderInfo.Split('#')[1], out id);
                     }
+                    else if (orderInfo.Contains("subscription", StringComparison.OrdinalIgnoreCase))
+                    {
+                        type = "Subscription";
+                        int.TryParse(orderInfo.Split('#')[1], out id);
+                    }
 
-                    // Redirect sang FE
                     return Redirect($"{successUrl}?type={type}&id={id}&txnRef={txnRef}&success=true");
                 }
 
-                // ❌ Nếu thanh toán thất bại
                 return Redirect($"{failUrl}?success=false&reason=payment_failed");
             }
             catch (Exception ex)
             {
-                // ❌ Nếu BE có lỗi
                 return Redirect($"{failUrl}?success=false&reason={Uri.EscapeDataString(ex.Message)}");
             }
         }
 
         // =====================================================
-        // 🔹 3️⃣ Callback POST — VNPay gọi webhook nội bộ (tuỳ chọn)
+        // 🔹 4️⃣ Callback POST — webhook nội bộ (tuỳ chọn)
         // =====================================================
         [HttpPost("vnpay-callback")]
         [AllowAnonymous]
         public Task<IActionResult> VnPayCallbackPost() => VnPayCallback();
 
         // =====================================================
-        // 🔹 4️⃣ API test (giả lập callback — test sandbox/local)
+        // 🔹 5️⃣ API test (giả lập callback — sandbox/local)
         // =====================================================
         [HttpPost("vnpay-callback-test")]
         public async Task<IActionResult> TestCallback([FromBody] PaymentCreateDto dto)
         {
-            if (dto.BookingId == null && dto.InvoiceId == null)
-                return BadRequest(new { success = false, message = "Thiếu BookingId hoặc InvoiceId." });
+            if (dto.BookingId == null && dto.InvoiceId == null && dto.SubscriptionId == null)
+                return BadRequest(new { success = false, message = "Thiếu BookingId, InvoiceId hoặc SubscriptionId." });
 
             string orderInfo = dto.BookingId.HasValue
                 ? $"Thanh toán booking #{dto.BookingId}"
-                : $"Thanh toán hóa đơn #{dto.InvoiceId}";
+                : dto.InvoiceId.HasValue
+                    ? $"Thanh toán hóa đơn #{dto.InvoiceId}"
+                    : $"Thanh toán subscription #{dto.SubscriptionId}";
 
             var fakeQuery = new QueryCollection(new System.Collections.Generic.Dictionary<string, Microsoft.Extensions.Primitives.StringValues>
             {
@@ -129,12 +154,11 @@ namespace WebAPI.Controllers
 
             var msg = await _paymentService.HandleCallbackAsync(fakeQuery);
 
-            return Ok(new
-            {
-                success = true,
-                message = msg,
-                type = dto.BookingId.HasValue ? "Booking" : "Invoice"
-            });
+            string type = dto.BookingId.HasValue ? "Booking" :
+                          dto.InvoiceId.HasValue ? "Invoice" :
+                          "Subscription";
+
+            return Ok(new { success = true, message = msg, type });
         }
     }
 }

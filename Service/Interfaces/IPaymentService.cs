@@ -8,6 +8,7 @@ namespace Services.Interfaces
     {
        
         Task<string> CreatePaymentUrl(PaymentCreateDto dto, string ipAddress);
+        Task<string> CreateSubscriptionPaymentUrl(int subscriptionId, string ipAddress);
 
         Task<string> HandleCallbackAsync(IQueryCollection query);
     }

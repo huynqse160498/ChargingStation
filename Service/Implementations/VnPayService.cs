@@ -18,26 +18,33 @@ namespace Services.Implementations
         private readonly IConfiguration _config;
         private readonly IBookingRepository _bookingRepo;
         private readonly IInvoiceRepository _invoiceRepo;
+        private readonly ISubscriptionRepository _subscriptionRepo;
+        private readonly ISubscriptionPlanRepository _planRepo;
         private readonly ILogger<VnPayService> _logger;
 
         public VnPayService(
             IConfiguration config,
             IBookingRepository bookingRepo,
             IInvoiceRepository invoiceRepo,
+            ISubscriptionRepository subscriptionRepo,
+            ISubscriptionPlanRepository planRepo,
             ILogger<VnPayService> logger)
         {
             _config = config;
             _bookingRepo = bookingRepo;
             _invoiceRepo = invoiceRepo;
+            _subscriptionRepo = subscriptionRepo;
+            _planRepo = planRepo;
             _logger = logger;
         }
 
-        // 🧾 Tạo URL thanh toán VNPay (Booking hoặc Invoice)
+        // 🧾 Tạo URL thanh toán VNPay (Booking / Invoice / Subscription)
         public async Task<string> CreatePaymentUrl(PaymentCreateDto dto, string ipAddress, string txnRef)
         {
             decimal amount = 0;
             string orderInfo;
 
+            // 🔹 Booking
             if (dto.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(dto.BookingId.Value)
@@ -49,6 +56,7 @@ namespace Services.Implementations
                 amount = booking.Price.Value;
                 orderInfo = $"Thanh toán booking #{booking.BookingId}";
             }
+            // 🔹 Invoice
             else if (dto.InvoiceId.HasValue)
             {
                 var invoice = await _invoiceRepo.GetByIdAsync(dto.InvoiceId.Value)
@@ -60,11 +68,26 @@ namespace Services.Implementations
                 amount = invoice.Total.Value;
                 orderInfo = $"Thanh toán hóa đơn #{invoice.InvoiceId}";
             }
+            // 🔹 Subscription (manual renew)
+            else if (dto.SubscriptionId.HasValue)
+            {
+                var sub = await _subscriptionRepo.GetByIdAsync(dto.SubscriptionId.Value)
+                    ?? throw new Exception($"Không tìm thấy Subscription #{dto.SubscriptionId}");
+
+                var plan = await _planRepo.GetByIdAsync(sub.SubscriptionPlanId)
+                    ?? throw new Exception("Không tìm thấy gói Subscription.");
+
+                amount = plan.PriceMonthly;
+                orderInfo = $"Thanh toán subscription #{dto.SubscriptionId}";
+            }
             else
             {
-                throw new Exception("Thiếu BookingId hoặc InvoiceId khi tạo thanh toán.");
+                throw new Exception("Thiếu BookingId, InvoiceId hoặc SubscriptionId khi tạo thanh toán.");
             }
 
+            // ==========================
+            // 🔐 Tạo URL VNPay
+            // ==========================
             var tmnCode = _config["VnPay:TmnCode"];
             var secret = (_config["VnPay:HashSecret"] ?? string.Empty).Trim();
             var baseUrl = _config["VnPay:BaseUrl"];
@@ -90,21 +113,18 @@ namespace Services.Implementations
                 ["vnp_TxnRef"] = txnRef
             };
 
-            // 🔐 Tạo chữ ký SHA512
             var signData = BuildDataToSign(vnpParams);
             var secureHash = ComputeHmacSha512(secret, signData);
 
             var query = string.Join("&", vnpParams.Select(kv => $"{kv.Key}={FormEncodeUpper(kv.Value)}"));
             var finalUrl = $"{baseUrl}?{query}&vnp_SecureHashType=HMACSHA512&vnp_SecureHash={secureHash}";
 
-            _logger.LogInformation("[VNPay SEND] signData={signData}", signData);
-            _logger.LogInformation("[VNPay SEND] secureHash={secureHash}", secureHash);
-            _logger.LogInformation("[VNPay SEND] finalUrl={finalUrl}", finalUrl);
+            _logger.LogInformation("[VNPay SEND] {orderInfo} -> {url}", orderInfo, finalUrl);
 
             return finalUrl;
         }
 
-        // ✅ Kiểm tra tính hợp lệ callback từ VNPay
+        // ✅ Xác thực callback
         public bool ValidateResponse(IQueryCollection vnpParams, out string txnRef)
         {
             txnRef = vnpParams["vnp_TxnRef"];
@@ -123,15 +143,10 @@ namespace Services.Implementations
             var signData = BuildDataToSign(data);
             var computed = ComputeHmacSha512(secret, signData);
 
-            _logger.LogInformation("[VNPay RETURN] signData={signData}", signData);
-            _logger.LogInformation("[VNPay RETURN] computed={computed}", computed);
-            _logger.LogInformation("[VNPay RETURN] fromVNPay={fromVNPay}", fromVnp);
-
             return computed.Equals(fromVnp, StringComparison.InvariantCultureIgnoreCase);
         }
 
         // ==================== Helpers ====================
-
         private static string FormEncodeUpper(string? value)
         {
             var encoded = HttpUtility.UrlEncode(value ?? string.Empty, Encoding.UTF8) ?? string.Empty;

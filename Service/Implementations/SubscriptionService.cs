@@ -37,29 +37,24 @@ namespace Services.Implementations
             var plan = await _planRepo.GetByIdAsync(dto.SubscriptionPlanId)
                        ?? throw new KeyNotFoundException("Subscription plan không tồn tại.");
 
+            // ✅ Gói mới tạo -> trạng thái Pending, chưa kích hoạt
             var sub = new Subscription
             {
                 SubscriptionPlanId = dto.SubscriptionPlanId,
                 CustomerId = dto.CustomerId ?? 0,
                 CompanyId = dto.CompanyId,
-                StartDate = dto.StartDate,
-                BillingCycle = dto.BillingCycle,
-                AutoRenew = dto.AutoRenew,
-                Status = (dto.Status == "Inactive") ? "Inactive" : "Active",
+                BillingCycle = dto.BillingCycle ?? "Monthly",
+                AutoRenew = false, // ❗ manual renew
+                Status = "Pending", // ❗ Chưa kích hoạt
                 CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now,
-                EndDate = dto.BillingCycle == "Yearly"
-                    ? dto.StartDate.AddYears(1)
-                    : dto.StartDate.AddMonths(1),
-                NextBillingDate = dto.BillingCycle == "Yearly"
-                    ? dto.StartDate.AddYears(1)
-                    : dto.StartDate.AddMonths(1)
+                UpdatedAt = DateTime.Now
             };
 
             var saved = await _repo.AddAsync(sub);
             saved.SubscriptionPlan = plan;
             return MapToRead(saved);
         }
+
 
         // ======================= [ UPDATE ] ==========================
         public async Task<SubscriptionReadDto> UpdateAsync(int id, SubscriptionUpdateDto dto)

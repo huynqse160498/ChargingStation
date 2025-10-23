@@ -39,6 +39,18 @@ namespace Repositories.Implementations
             await _ctx.SaveChangesAsync();
             return entity;
         }
+        public async Task<Subscription?> GetActiveByCustomerOrCompanyAsync(int customerId, int? companyId)
+        {
+            return await _ctx.Subscriptions
+                .Include(s => s.SubscriptionPlan)
+                .Where(s =>
+                    (s.CustomerId == customerId || (companyId != null && s.CompanyId == companyId))
+                    && s.Status == "Active"
+                    && (s.EndDate == null || s.EndDate >= DateTime.Now))
+                .OrderByDescending(s => s.StartDate)
+                .FirstOrDefaultAsync();
+        }
+
 
         public async Task DeleteAsync(Subscription entity)
         {
