@@ -18,14 +18,18 @@ namespace Repositories.Models
         // 🔹 Nội dung
         public string Title { get; set; }
         public string Message { get; set; }
+        //
         public string Type { get; set; } = "System"; // System / Manual / Alert / InvoiceReminder / Policy
+        public string Priority { get; set; } = "Normal"; // Low / Normal / High
+         //                                           
+        public string? ActionUrl { get; set; } // VD: /invoice/5, /subscription/detail/3
 
         // 🔹 Gửi bởi ai (Admin)
         public int? SenderAdminId { get; set; }
 
         // 🔹 Trạng thái
         public bool IsRead { get; set; } = false;
-
+        public bool IsArchived { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         // 🔗 Navigation

@@ -23,5 +23,7 @@ public class Subscription
     public virtual Company Company { get; set; }
     public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
 
 }

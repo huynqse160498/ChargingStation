@@ -310,17 +310,17 @@ namespace Repositories.Models
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasOne(e => e.Booking)
-                    .WithMany()
+                    .WithMany(b => b.Notifications)
                     .HasForeignKey(e => e.BookingId)
                     .OnDelete(DeleteBehavior.SetNull);
 
                 entity.HasOne(e => e.Invoice)
-                    .WithMany()
+                    .WithMany(b => b.Notifications)
                     .HasForeignKey(e => e.InvoiceId)
                     .OnDelete(DeleteBehavior.SetNull);
 
                 entity.HasOne(e => e.Subscription)
-                    .WithMany()
+                    .WithMany(b => b.Notifications)
                     .HasForeignKey(e => e.SubscriptionId)
                     .OnDelete(DeleteBehavior.SetNull);
             });

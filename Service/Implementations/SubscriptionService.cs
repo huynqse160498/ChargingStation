@@ -1,5 +1,6 @@
 ﻿using Repositories.DTOs.Subscriptions;
 using Repositories.Interfaces;
+using Repositories.Models;
 using Services.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -13,11 +14,12 @@ namespace Services.Implementations
     {
         private readonly ISubscriptionRepository _repo;
         private readonly ISubscriptionPlanRepository _planRepo;
-
-        public SubscriptionService(ISubscriptionRepository repo, ISubscriptionPlanRepository planRepo)
+        private readonly INotificationRepository _notiRepo;
+        public SubscriptionService(ISubscriptionRepository repo, ISubscriptionPlanRepository planRepo, INotificationRepository notiRepo)
         {
             _repo = repo;
             _planRepo = planRepo;
+            _notiRepo = notiRepo;
         }
 
         // ======================= [ GET - ALL ] =======================
@@ -51,6 +53,18 @@ namespace Services.Implementations
             };
 
             var saved = await _repo.AddAsync(sub);
+            await _notiRepo.AddAsync(new Notification
+            {
+                CustomerId = sub.CustomerId,
+                CompanyId = sub.CompanyId,
+                SubscriptionId = sub.SubscriptionId,
+                Title = "Đăng ký gói dịch vụ thành công",
+                Message = $"Bạn đã đăng ký gói '{plan.PlanName}' thành công. Thời hạn sử dụng đến {sub.EndDate:dd/MM/yyyy}.",
+                Type = "Subscription",
+                Priority = "Normal",
+                ActionUrl = $"/subscriptions/{sub.SubscriptionId}"
+            });
+
             saved.SubscriptionPlan = plan;
             return MapToRead(saved);
         }

@@ -13,11 +13,12 @@ namespace Services.Implementations
     {
         private readonly IBookingRepository _repo;
         private readonly ChargeStationContext _db;
-
-        public BookingService(IBookingRepository repo, ChargeStationContext db)
+        private readonly INotificationRepository _notiRepo;
+        public BookingService(IBookingRepository repo, ChargeStationContext db, INotificationRepository notiRepo)
         {
             _repo = repo;
             _db = db;
+            _notiRepo = notiRepo;
         }
 
         // ===========================
@@ -165,10 +166,22 @@ namespace Services.Implementations
 
             await _repo.AddAsync(booking);
             await _repo.SaveAsync();
-
+        
             await tx.CommitAsync();
+       
 
             string owner = customerId != null ? "Khách hàng" : "Công ty";
+            await _notiRepo.AddAsync(new Notification
+            {
+                CustomerId = booking.CustomerId,
+                CompanyId = booking.CompanyId,
+                BookingId = booking.BookingId,
+                Title = "Đặt lịch sạc thành công",
+                Message = $"Bạn đã đặt lịch sạc tại cổng #{booking.PortId} từ {booking.StartTime:HH:mm dd/MM} đến {booking.EndTime:HH:mm dd/MM}.",
+                Type = "Booking",
+                Priority = "Normal",
+                ActionUrl = $"/bookings/{booking.BookingId}"
+            });
             return $"✅ {owner} đã đặt lịch thành công! Giá tạm tính: {price:N0} VNĐ";
         }
 
@@ -253,6 +266,17 @@ namespace Services.Implementations
 
             await _repo.UpdateAsync(booking);
             await tx.CommitAsync();
+            await _notiRepo.AddAsync(new Notification
+            {
+                CustomerId = booking.CustomerId,
+                CompanyId = booking.CompanyId,
+                BookingId = booking.BookingId,
+                Title = "Đặt lịch đã được xác nhận",
+                Message = $"Đặt lịch #{booking.BookingId} của bạn đã được xác nhận. Hãy đến đúng giờ để sạc xe nhé!",
+                Type = "Booking",
+                Priority = "Normal",
+                ActionUrl = $"/bookings/{booking.BookingId}"
+            });
 
             return $"✅ Cập nhật đặt lịch thành công! Giá tạm tính mới: {booking.Price:N0} VNĐ";
         }

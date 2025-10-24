@@ -25,4 +25,7 @@ public partial class Booking
     public virtual Vehicle Vehicle { get; set; }
     public virtual Company? Company { get; set; } // ✅ Thêm dòng này
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
 }
+

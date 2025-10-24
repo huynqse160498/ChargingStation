@@ -33,5 +33,7 @@ namespace Repositories.Models
 
         public virtual ICollection<ChargingSession> ChargingSessions { get; set; } = new List<ChargingSession>();
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+        public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+
     }
 }

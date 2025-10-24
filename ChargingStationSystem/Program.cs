@@ -63,7 +63,8 @@ namespace ChargingStationSystem
 
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
             builder.Services.AddScoped<IBookingService, BookingService>();
-
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+            builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 
             builder.Services.AddScoped<IPricingRuleRepository, PricingRuleRepository>();
             builder.Services.AddScoped<IPricingRuleService, PricingRuleService>();
@@ -78,6 +79,7 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
             builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
 
+    
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService
 
             // ==================== JWT CONFIGURATION ====================

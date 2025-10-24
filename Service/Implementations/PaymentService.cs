@@ -17,6 +17,8 @@ namespace Services.Implementations
         private readonly IInvoiceRepository _invoiceRepo;
         private readonly ISubscriptionRepository _subscriptionRepo;
         private readonly ISubscriptionPlanRepository _planRepo;
+        private readonly INotificationRepository _notiRepo;
+
 
         public PaymentService(
             IVnPayService vnPay,
@@ -24,7 +26,8 @@ namespace Services.Implementations
             IBookingRepository bookingRepo,
             IInvoiceRepository invoiceRepo,
             ISubscriptionRepository subscriptionRepo,
-            ISubscriptionPlanRepository planRepo)
+            ISubscriptionPlanRepository planRepo,
+             INotificationRepository notiRepo)
         {
             _vnPay = vnPay;
             _paymentRepo = paymentRepo;
@@ -32,6 +35,7 @@ namespace Services.Implementations
             _invoiceRepo = invoiceRepo;
             _subscriptionRepo = subscriptionRepo;
             _planRepo = planRepo;
+            _notiRepo = notiRepo;
         }
 
         // ===========================================================
@@ -134,8 +138,20 @@ namespace Services.Implementations
 
             await _bookingRepo.SaveAsync();
             await _paymentRepo.AddAsync(payment);
+            await _notiRepo.AddAsync(new Notification
+            {
+                CustomerId = booking.CustomerId,
+                CompanyId = booking.CompanyId,
+                BookingId = booking.BookingId,
+                Title = "Thanh toán đặt lịch thành công",
+                Message = $"Đặt lịch #{booking.BookingId} của bạn đã được thanh toán thành công. Cảm ơn bạn đã sử dụng dịch vụ!",
+                Type = "Booking",
+                Priority = "Normal",
+                ActionUrl = $"/bookings/{booking.BookingId}"
+            });
 
             return $"✅ Thanh toán thành công cho Booking #{booking.BookingId}.";
+
         }
 
         // ===========================================================
@@ -164,6 +180,18 @@ namespace Services.Implementations
             await _invoiceRepo.UpdateAsync(invoice);
             await _paymentRepo.AddAsync(payment);
             await _invoiceRepo.SaveAsync();
+            await _notiRepo.AddAsync(new Notification
+            {
+                CustomerId = invoice.CustomerId,
+                CompanyId = invoice.CompanyId,
+                InvoiceId = invoice.InvoiceId,
+                Title = "Thanh toán hóa đơn thành công",
+                Message = $"Hóa đơn #{invoice.InvoiceId} đã được thanh toán thành công. Cảm ơn bạn đã đồng hành cùng hệ thống!",
+                Type = "Invoice",
+                Priority = "Normal",
+                ActionUrl = $"/invoices/{invoice.InvoiceId}"
+            });
+
             return $"✅ Thanh toán thành công cho Hóa đơn #{invoice.InvoiceId}.";
         }
 
@@ -223,6 +251,17 @@ namespace Services.Implementations
                 IsMonthlyInvoice = false
             };
             await _invoiceRepo.AddAsync(invoice);
+            await _notiRepo.AddAsync(new Notification
+            {
+                CustomerId = sub.CustomerId,
+                CompanyId = sub.CompanyId,
+                SubscriptionId = sub.SubscriptionId,
+                Title = "Gia hạn gói đăng ký thành công",
+                Message = $"Gói {plan.PlanName} của bạn đã được gia hạn đến {sub.EndDate:dd/MM/yyyy}.",
+                Type = "Subscription",
+                Priority = "High",
+                ActionUrl = $"/subscriptions/{sub.SubscriptionId}"
+            });
 
             return $"✅ Thanh toán & gia hạn thành công Subscription #{sub.SubscriptionId} đến {sub.EndDate:dd/MM/yyyy}.";
         }
