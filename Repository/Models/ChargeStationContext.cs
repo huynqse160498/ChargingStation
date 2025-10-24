@@ -27,6 +27,7 @@ namespace Repositories.Models
         public virtual DbSet<PricingRule> PricingRules { get; set; }
         public virtual DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
         public virtual DbSet<Subscription> Subscriptions { get; set; }
+        public virtual DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -290,6 +291,40 @@ namespace Repositories.Models
                 entity.Ignore("StationId");
             });
             #endregion
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(e => e.NotificationId);
+
+                entity.Property(e => e.Title).HasMaxLength(255);
+                entity.Property(e => e.Message).HasMaxLength(2000);
+                entity.Property(e => e.Type).HasMaxLength(50);
+
+                entity.HasOne(e => e.Customer)
+                    .WithMany(c => c.Notifications)
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Company)
+                    .WithMany(c => c.Notifications)
+                    .HasForeignKey(e => e.CompanyId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.Booking)
+                    .WithMany()
+                    .HasForeignKey(e => e.BookingId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Invoice)
+                    .WithMany()
+                    .HasForeignKey(e => e.InvoiceId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.Subscription)
+                    .WithMany()
+                    .HasForeignKey(e => e.SubscriptionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
             modelBuilder.Entity<Payment>()
     .Property(p => p.Amount)
     .HasColumnType("decimal(12,2)");

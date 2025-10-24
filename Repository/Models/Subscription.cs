@@ -4,7 +4,7 @@ public class Subscription
 {
     public int SubscriptionId { get; set; }
     public int SubscriptionPlanId { get; set; }
-    public int CustomerId { get; set; } // bắt buộc 1 trong Customer / Company
+    public int? CustomerId { get; set; } // bắt buộc 1 trong Customer / Company
     public int? CompanyId { get; set; }
 
     public DateTime StartDate { get; set; } = DateTime.Now;

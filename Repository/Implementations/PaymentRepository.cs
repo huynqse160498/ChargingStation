@@ -1,26 +1,63 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Repositories.Interfaces;
 using Repositories.Models;
-using System.Linq;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Repositories.Implementations
 {
     public class PaymentRepository : IPaymentRepository
     {
-        private readonly ChargeStationContext _db;
+        private readonly ChargeStationContext _context;
 
-        public PaymentRepository(ChargeStationContext db)
+        public PaymentRepository(ChargeStationContext context)
         {
-            _db = db;
+            _context = context;
         }
 
-        public IQueryable<Payment> GetAll() => _db.Payments.AsQueryable();
+        public async Task<List<Payment>> GetAllAsync()
+        {
+            return await _context.Payments
+                .Include(p => p.Customer)
+                .Include(p => p.Company)
+                .Include(p => p.Booking)
+                .Include(p => p.Invoice)
+                .Include(p => p.Subscription)
+                .AsNoTracking()
+                .ToListAsync();
+        }
 
-        public async Task<Payment?> GetByIdAsync(int id) => await _db.Payments.FindAsync(id);
+        public async Task<Payment?> GetByIdAsync(int id)
+        {
+            return await _context.Payments
+                .Include(p => p.Customer)
+                .Include(p => p.Company)
+                .Include(p => p.Booking)
+                .Include(p => p.Invoice)
+                .Include(p => p.Subscription)
+                .FirstOrDefaultAsync(p => p.PaymentId == id);
+        }
 
-        public async Task AddAsync(Payment entity) => await _db.Payments.AddAsync(entity);
+        public async Task<Payment> AddAsync(Payment payment)
+        {
+            await _context.Payments.AddAsync(payment);
+            await _context.SaveChangesAsync();
+            return payment;
+        }
 
-        public async Task SaveAsync() => await _db.SaveChangesAsync();
+        public async Task<Payment> UpdateAsync(Payment payment)
+        {
+            _context.Payments.Update(payment);
+            await _context.SaveChangesAsync();
+            return payment;
+        }
+
+        public async Task DeleteAsync(Payment payment)
+        {
+            _context.Payments.Remove(payment);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task SaveAsync() => await _context.SaveChangesAsync();
     }
 }

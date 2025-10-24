@@ -31,10 +31,11 @@ public partial class Company
     public int AccountId { get; set; }
     public virtual Account Account { get; set; }
     public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
-
+    public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
     public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
     public virtual ICollection<Subscription> Subscriptions { get; set; } = new List<Subscription>();
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
+    public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 
 }

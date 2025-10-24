@@ -16,6 +16,10 @@ namespace Repositories.DTOs
     {
         public int PaymentId { get; set; }
         public int BookingId { get; set; }
+        public int InvoiceId { get; set; }
+        public int? CompanyId { get; set; }
+        public int CustomerId { get; set; }
+        public int SubscriptionId { get; set; } 
         public decimal? Amount { get; set; }
         public string Method { get; set; }
         public string Status { get; set; }
@@ -26,5 +30,11 @@ namespace Repositories.DTOs
     {
         public DateTime? CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+    }
+    public class PaymentUpdateDto
+    {
+        public decimal? Amount { get; set; }
+        public string? Method { get; set; }
+        public string? Status { get; set; }
     }
 }

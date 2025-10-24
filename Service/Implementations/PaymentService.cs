@@ -46,8 +46,14 @@ namespace Services.Implementations
                 orderInfo = $"Thanh toán booking #{dto.BookingId}";
             else if (dto.InvoiceId.HasValue)
                 orderInfo = $"Thanh toán hóa đơn #{dto.InvoiceId}";
+            else if (dto.SubscriptionId.HasValue) // ✅ Thêm xử lý này
+            {
+                orderInfo = $"Thanh toán subscription #{dto.SubscriptionId}";
+            }
             else
-                throw new Exception("Phải có BookingId hoặc InvoiceId để tạo thanh toán.");
+            {
+                throw new Exception("Phải có BookingId, InvoiceId hoặc SubscriptionId để tạo thanh toán.");
+            }
 
             dto.Description = orderInfo;
             return await _vnPay.CreatePaymentUrl(dto, ipAddress, txnRef);
@@ -115,6 +121,7 @@ namespace Services.Implementations
             {
                 BookingId = booking.BookingId,
                 CustomerId = booking.CustomerId ?? 0,
+                CompanyId = booking.CompanyId,        // ✅ Thêm dòng này
                 Amount = booking.Price,
                 Method = "VNPAY",
                 Status = "Success",
@@ -143,6 +150,7 @@ namespace Services.Implementations
             {
                 InvoiceId = invoice.InvoiceId,
                 CustomerId = invoice.CustomerId ?? 0,
+                CompanyId = invoice.CompanyId,        // ✅ Thêm dòng này
                 Amount = invoice.Total,
                 Method = "VNPAY",
                 Status = "Success",
@@ -155,7 +163,7 @@ namespace Services.Implementations
 
             await _invoiceRepo.UpdateAsync(invoice);
             await _paymentRepo.AddAsync(payment);
-
+            await _invoiceRepo.SaveAsync();
             return $"✅ Thanh toán thành công cho Hóa đơn #{invoice.InvoiceId}.";
         }
 
@@ -175,7 +183,8 @@ namespace Services.Implementations
             var payment = new Payment
             {
                 SubscriptionId = sub.SubscriptionId,
-                CustomerId = sub.CustomerId,
+                CustomerId = sub.CustomerId ?? 0,
+                CompanyId = sub.CompanyId,
                 Amount = amount,
                 Method = "VNPAY",
                 Status = "Success",

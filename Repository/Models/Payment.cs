@@ -11,7 +11,7 @@ public partial class Payment
     public int? InvoiceId { get; set; } // Thanh toán trả sau
     public int? BookingId { get; set; } // Thanh toán trực tiếp
     public int? SubscriptionId { get; set; }   // ✅ Thêm dòng này
-
+    public int? CompanyId { get; set; }        // ✅ Công ty thanh toán
     public int CustomerId { get; set; }
 
     public string Method { get; set; }
@@ -22,6 +22,7 @@ public partial class Payment
     public string Status { get; set; }
 
     public virtual Customer Customer { get; set; }
+    public virtual Company? Company { get; set; }
     public virtual Invoice Invoice { get; set; }
     public virtual Booking Booking { get; set; }
     public virtual Subscription Subscription { get; set; }  // ✅ Thêm dòng này
