@@ -37,5 +37,6 @@ public partial class Company
     public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
     public virtual ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
     public virtual ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public virtual ICollection<ChargingSession> ChargingSessions { get; set; } = new List<ChargingSession>();
 
 }

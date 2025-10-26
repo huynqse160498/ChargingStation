@@ -39,7 +39,7 @@ namespace Repositories.Implementations
             await _ctx.SaveChangesAsync();
             return entity;
         }
-        public async Task<Subscription?> GetActiveByCustomerOrCompanyAsync(int customerId, int? companyId)
+        public async Task<Subscription?> GetActiveByCustomerOrCompanyAsync(int? customerId, int? companyId)
         {
             return await _ctx.Subscriptions
                 .Include(s => s.SubscriptionPlan)

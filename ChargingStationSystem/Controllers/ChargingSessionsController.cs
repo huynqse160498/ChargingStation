@@ -41,6 +41,7 @@ namespace ChargingStationSystem.Controllers
                         session.PortId,
                         session.VehicleId,
                         session.CustomerId,
+                        session.CompanyId,
                         session.Status,
                         session.StartSoc,
                         session.StartedAt,
@@ -80,6 +81,8 @@ namespace ChargingStationSystem.Controllers
                     data = new
                     {
                         session.ChargingSessionId,
+                        session.CustomerId,
+                        session.CompanyId,
                         session.VehicleId,
                         session.PortId,
                         session.StartSoc,
@@ -120,6 +123,7 @@ namespace ChargingStationSystem.Controllers
                 {
                     s.ChargingSessionId,
                     s.CustomerId,
+                    s.CompanyId,
                     s.PortId,
                     s.VehicleId,
                     s.StartedAt,
@@ -144,6 +148,7 @@ namespace ChargingStationSystem.Controllers
             {
                 session.ChargingSessionId,
                 session.CustomerId,
+                session.CompanyId,
                 session.VehicleId,
                 session.PortId,
                 session.PricingRuleId,

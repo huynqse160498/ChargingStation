@@ -13,6 +13,6 @@ namespace Repositories.Interfaces
         Task<Subscription> AddAsync(Subscription entity);        
         Task<Subscription> UpdateAsync(Subscription entity);     
         Task DeleteAsync(Subscription entity);
-        Task<Subscription?> GetActiveByCustomerOrCompanyAsync(int customerId, int? companyId);
+        Task<Subscription?> GetActiveByCustomerOrCompanyAsync(int? customerId, int? companyId);
     }
 }

@@ -9,7 +9,8 @@ public partial class ChargingSession
 {
     public int ChargingSessionId { get; set; }
     public int? BookingId { get; set; }
-    public int CustomerId { get; set; }
+    public int? CustomerId { get; set; }
+    public int? CompanyId { get; set; }
     public int VehicleId { get; set; }
     public int PortId { get; set; }
     public int PricingRuleId { get; set; } // Liên kết tới PricingRule
@@ -32,6 +33,7 @@ public partial class ChargingSession
 
     public virtual Booking Booking { get; set; }
     public virtual Customer Customer { get; set; }
+    public virtual Company Company { get; set; }
     public virtual Invoice Invoice { get; set; }
     public virtual Port Port { get; set; }
     public virtual Vehicle Vehicle { get; set; }

@@ -37,7 +37,7 @@ namespace Services.Implementations
 
             var invoice = new Invoice
             {
-                CustomerId = dto.CustomerId ?? 0,
+                CustomerId = dto.CustomerId,
                 CompanyId = dto.CompanyId,
                 SubscriptionId = dto.SubscriptionId,
                 BillingMonth = dto.BillingMonth,
@@ -46,8 +46,10 @@ namespace Services.Implementations
                 Tax = dto.Tax ?? (dto.Subtotal * 0.1M),
                 Total = dto.Total ?? (dto.Subtotal * 1.1M),
                 Status = "Unpaid",
-                CreatedAt = DateTime.Now
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
             };
+
 
             await _invoiceRepo.AddAsync(invoice);
             return invoice;

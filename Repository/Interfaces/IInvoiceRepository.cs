@@ -13,7 +13,7 @@ namespace Repositories.Interfaces
         Task UpdateAsync(Invoice invoice);
         Task DeleteAsync(Invoice invoice);
 
-        Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int customerId, int month, int year);
+        Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int? customerId,int? companyId, int month, int year);
         Task RecalculateInvoiceAsync(int invoiceId);
 
         Task SaveAsync();

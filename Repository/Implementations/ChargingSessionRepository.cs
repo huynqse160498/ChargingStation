@@ -18,6 +18,7 @@ namespace Repositories.Implementations
             return await _context.ChargingSessions
                 .Include(x => x.PricingRule)
                 .Include(x => x.Customer)
+                .Include(x => x.Company)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Port)
                 .ToListAsync();
@@ -28,6 +29,7 @@ namespace Repositories.Implementations
             return await _context.ChargingSessions
                 .Include(x => x.PricingRule)
                 .Include(x => x.Customer)
+                .Include(x => x.Company)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Port)
                 .FirstOrDefaultAsync(x => x.ChargingSessionId == id);

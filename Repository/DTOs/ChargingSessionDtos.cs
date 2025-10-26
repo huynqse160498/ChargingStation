@@ -3,7 +3,8 @@
     // ✅ Dùng khi bắt đầu phiên sạc
     public class ChargingSessionCreateDto
     {
-        public int CustomerId { get; set; }
+        public int? CustomerId { get; set; }
+        public int? CompanyId { get; set; }
         public int VehicleId { get; set; }
         public int? BookingId { get; set; } // Có thể null
         public int? PortId { get; set; }    // Bắt buộc nếu không có Booking
@@ -20,7 +21,8 @@
     public class ChargingSessionDto
     {
         public int ChargingSessionId { get; set; }
-        public int CustomerId { get; set; }
+        public int? CustomerId { get; set; }
+        public int? CompanyId { get; set; }
         public int VehicleId { get; set; }
         public int PortId { get; set; }
         public int? BookingId { get; set; }

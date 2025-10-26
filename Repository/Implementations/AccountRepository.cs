@@ -20,6 +20,7 @@ namespace Repositories.Implementations
         {
             return await _context.Accounts
                 .Include(a => a.Customers)
+                .Include(a => a.Company)
                 .FirstOrDefaultAsync(a => a.UserName == username);
         }
 
@@ -27,6 +28,7 @@ namespace Repositories.Implementations
         {
             return await _context.Accounts
                 .Include(a => a.Customers)
+                .Include(a => a.Company)
                 .ThenInclude(c => c.Subscriptions)           // ✅ thêm dòng này
                 .FirstOrDefaultAsync(a => a.AccountId == id);
         }
@@ -35,6 +37,7 @@ namespace Repositories.Implementations
         {
             return await _context.Accounts
                 .Include(a => a.Customers)
+                .Include(a => a.Company)
                 .ThenInclude(c => c.Subscriptions)
                 .ToListAsync();
         }

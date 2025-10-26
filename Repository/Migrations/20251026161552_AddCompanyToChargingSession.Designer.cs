@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Repositories.Models;
 
@@ -11,9 +12,11 @@ using Repositories.Models;
 namespace Repositories.Migrations
 {
     [DbContext(typeof(ChargeStationContext))]
-    partial class ChargeStationContextModelSnapshot : ModelSnapshot
+    [Migration("20251026161552_AddCompanyToChargingSession")]
+    partial class AddCompanyToChargingSession
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -190,7 +193,7 @@ namespace Repositories.Migrations
                     b.Property<int?>("BookingId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("CompanyId")
+                    b.Property<int>("CompanyId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("CreatedAt")
@@ -198,7 +201,7 @@ namespace Repositories.Migrations
                         .HasColumnType("datetime")
                         .HasDefaultValueSql("(getdate())");
 
-                    b.Property<int?>("CustomerId")
+                    b.Property<int>("CustomerId")
                         .HasColumnType("int");
 
                     b.Property<int?>("DurationMin")
@@ -936,11 +939,14 @@ namespace Repositories.Migrations
 
                     b.HasOne("Repositories.Models.Company", "Company")
                         .WithMany("ChargingSessions")
-                        .HasForeignKey("CompanyId");
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.HasOne("Repositories.Models.Customer", "Customer")
                         .WithMany("ChargingSessions")
-                        .HasForeignKey("CustomerId");
+                        .HasForeignKey("CustomerId")
+                        .IsRequired();
 
                     b.HasOne("Repositories.Models.Invoice", "Invoice")
                         .WithMany("ChargingSessions")

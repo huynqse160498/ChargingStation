@@ -88,13 +88,14 @@ namespace Repositories.Implementations
         // ============================================================
         // 🔹 Get hoặc Create hóa đơn tháng (logic mới)
         // ============================================================
-        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int customerId, int month, int year)
+        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int? customerId, int? companyId, int month, int year)
         {
             // ⚙️ Tìm hóa đơn chưa thanh toán trong tháng
             var invoice = await _context.Invoices
                 .Include(i => i.ChargingSessions)
                 .FirstOrDefaultAsync(i =>
                     i.CustomerId == customerId &&
+                    i.CompanyId == companyId &&
                     i.BillingMonth == month &&
                     i.BillingYear == year &&
                     i.Status != "Paid");
@@ -105,6 +106,7 @@ namespace Repositories.Implementations
                 invoice = new Invoice
                 {
                     CustomerId = customerId,
+                    CompanyId = companyId,
                     BillingMonth = month,
                     BillingYear = year,
                     Status = "Unpaid",
@@ -124,6 +126,7 @@ namespace Repositories.Implementations
                 var newInvoice = new Invoice
                 {
                     CustomerId = customerId,
+                    CompanyId = companyId,
                     BillingMonth = month,
                     BillingYear = year,
                     Status = "Unpaid",
