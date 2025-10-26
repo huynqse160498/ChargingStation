@@ -161,13 +161,20 @@ namespace Services.Implementations
         }
 
         // ------------------- CRUD tài khoản -------------------
-        public async Task<IEnumerable<Account>> GetAllAsync() => await _accountRepository.GetAllAsync();
+        public async Task<IEnumerable<Account>> GetAllAsync()
+        {
+            return await _context.Accounts
+                .Include(a => a.Company)   // ✅ thêm dòng này
+                .Include(a => a.Customers) // để load cả Customer nếu là cá nhân
+                .ToListAsync();
+        }
 
         public async Task<Account> GetByIdAsync(int id)
         {
-            var account = await _accountRepository.GetByIdAsync(id);
-            if (account == null) throw new KeyNotFoundException("Không tìm thấy tài khoản.");
-            return account;
+            return await _context.Accounts
+                .Include(a => a.Company)   // ✅ thêm dòng này
+                .Include(a => a.Customers) // vẫn giữ dòng này
+                .FirstOrDefaultAsync(a => a.AccountId == id);
         }
 
         public async Task<bool> DeleteAsync(int id)
