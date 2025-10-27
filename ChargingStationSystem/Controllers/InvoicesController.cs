@@ -15,20 +15,65 @@ namespace ChargingStationSystem.Controllers
             _service = service;
         }
 
+        // ============================================================
         // 🔹 [ADMIN] Lấy tất cả hóa đơn
+        // ============================================================
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var invoices = await _service.GetAllAsync();
+
+            var result = invoices.Select(i => new
+            {
+                i.InvoiceId,
+                i.CustomerId,
+                i.CompanyId,
+                i.BillingMonth,
+                i.BillingYear,
+                i.Status,
+                i.Subtotal,
+                i.Tax,
+                i.Total,
+                i.CreatedAt,
+                i.UpdatedAt,
+
+                Subscription = i.Subscription == null ? null : new
+                {
+                    i.Subscription.SubscriptionId,
+                    i.Subscription.StartDate,
+                    i.Subscription.EndDate,
+                    Plan = i.Subscription.SubscriptionPlan == null ? null : new
+                    {
+                        i.Subscription.SubscriptionPlan.PlanName,
+                        i.Subscription.SubscriptionPlan.PriceMonthly,
+                        i.Subscription.SubscriptionPlan.DiscountPercent,
+                        i.Subscription.SubscriptionPlan.FreeIdleMinutes
+                    }
+                },
+
+                ChargingSessions = i.ChargingSessions?.Select(cs => new
+                {
+                    cs.ChargingSessionId,
+                    cs.VehicleId,
+                    cs.PortId,
+                    cs.Total,
+                    cs.Status,
+                    cs.StartedAt,
+                    cs.EndedAt
+                })
+            });
+
             return Ok(new
             {
                 message = "✅ Danh sách hóa đơn",
-                total = invoices.Count,
-                data = invoices
+                total = result.Count(),
+                data = result
             });
         }
 
+        // ============================================================
         // 🔹 [CUSTOMER] Xem hóa đơn của chính mình
+        // ============================================================
         [HttpGet("by-customer/{customerId}")]
         public async Task<IActionResult> GetByCustomer(int customerId)
         {
@@ -36,14 +81,26 @@ namespace ChargingStationSystem.Controllers
             if (!invoices.Any())
                 return NotFound(new { message = "Khách hàng chưa có hóa đơn nào." });
 
+            var result = invoices.Select(i => new
+            {
+                i.InvoiceId,
+                i.BillingMonth,
+                i.BillingYear,
+                i.Status,
+                i.Total,
+                SubscriptionPlan = i.Subscription?.SubscriptionPlan?.PlanName
+            });
+
             return Ok(new
             {
                 message = $"✅ {invoices.Count} hóa đơn của khách hàng #{customerId}",
-                data = invoices
+                data = result
             });
         }
 
+        // ============================================================
         // 🔹 [COMPANY] Xem tất cả hóa đơn của nhân viên trong công ty
+        // ============================================================
         [HttpGet("by-company/{companyId}")]
         public async Task<IActionResult> GetByCompany(int companyId)
         {
@@ -51,14 +108,26 @@ namespace ChargingStationSystem.Controllers
             if (!invoices.Any())
                 return NotFound(new { message = "Công ty này chưa có hóa đơn nào." });
 
+            var result = invoices.Select(i => new
+            {
+                i.InvoiceId,
+                i.BillingMonth,
+                i.BillingYear,
+                i.Status,
+                i.Total,
+                SubscriptionPlan = i.Subscription?.SubscriptionPlan?.PlanName
+            });
+
             return Ok(new
             {
                 message = $"✅ {invoices.Count} hóa đơn của công ty #{companyId}",
-                data = invoices
+                data = result
             });
         }
 
-        // 🔹 Xem chi tiết hóa đơn
+        // ============================================================
+        // 🔹 Xem chi tiết hóa đơn (có Subscription + Plan)
+        // ============================================================
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
@@ -69,11 +138,51 @@ namespace ChargingStationSystem.Controllers
             return Ok(new
             {
                 message = "✅ Chi tiết hóa đơn",
-                data = invoice
+                data = new
+                {
+                    invoice.InvoiceId,
+                    invoice.CustomerId,
+                    invoice.CompanyId,
+                    invoice.BillingMonth,
+                    invoice.BillingYear,
+                    invoice.Status,
+                    invoice.Subtotal,
+                    invoice.Tax,
+                    invoice.Total,
+                    invoice.CreatedAt,
+                    invoice.UpdatedAt,
+
+                    Subscription = invoice.Subscription == null ? null : new
+                    {
+                        invoice.Subscription.SubscriptionId,
+                        invoice.Subscription.StartDate,
+                        invoice.Subscription.EndDate,
+                        Plan = invoice.Subscription.SubscriptionPlan == null ? null : new
+                        {
+                            invoice.Subscription.SubscriptionPlan.PlanName,
+                            invoice.Subscription.SubscriptionPlan.PriceMonthly,
+                            invoice.Subscription.SubscriptionPlan.DiscountPercent,
+                            invoice.Subscription.SubscriptionPlan.FreeIdleMinutes
+                        }
+                    },
+
+                    ChargingSessions = invoice.ChargingSessions?.Select(cs => new
+                    {
+                        cs.ChargingSessionId,
+                        cs.VehicleId,
+                        cs.PortId,
+                        cs.Total,
+                        cs.Status,
+                        cs.StartedAt,
+                        cs.EndedAt
+                    })
+                }
             });
         }
 
+        // ============================================================
         // 🔹 [ADMIN] Tạo hóa đơn thủ công (ngoài hóa đơn tự sinh)
+        // ============================================================
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] InvoiceCreateDto dto)
         {
@@ -86,7 +195,13 @@ namespace ChargingStationSystem.Controllers
                 return Ok(new
                 {
                     message = "✅ Tạo hóa đơn thủ công thành công!",
-                    data = invoice
+                    data = new
+                    {
+                        invoice.InvoiceId,
+                        invoice.Status,
+                        invoice.Total,
+                        invoice.CreatedAt
+                    }
                 });
             }
             catch (Exception ex)
@@ -95,7 +210,9 @@ namespace ChargingStationSystem.Controllers
             }
         }
 
+        // ============================================================
         // 🔹 [ADMIN] Cập nhật trạng thái (Paid / Overdue / Unpaid)
+        // ============================================================
         [HttpPut("status")]
         public async Task<IActionResult> UpdateStatus([FromBody] InvoiceUpdateStatusDto dto)
         {
@@ -113,7 +230,9 @@ namespace ChargingStationSystem.Controllers
             }
         }
 
+        // ============================================================
         // 🔹 [ADMIN] Xóa hóa đơn
+        // ============================================================
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

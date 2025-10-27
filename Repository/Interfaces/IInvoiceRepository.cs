@@ -8,7 +8,7 @@ namespace Repositories.Interfaces
         Task<Invoice?> GetByIdAsync(int id);
         Task<Invoice?> GetByCustomerAndMonthAsync(int customerId, int month, int year);
         Task<Invoice?> GetByCompanyAndMonthAsync(int companyId, int month, int year);
-
+        IQueryable<Invoice> Query(); // ✅ thêm dòng này
         Task AddAsync(Invoice invoice);
         Task UpdateAsync(Invoice invoice);
         Task DeleteAsync(Invoice invoice);

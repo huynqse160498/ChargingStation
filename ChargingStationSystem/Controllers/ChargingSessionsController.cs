@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Repositories.DTOs;
 using Services.Interfaces;
 
@@ -55,15 +56,12 @@ namespace ChargingStationSystem.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new
-                {
-                    error = ex.InnerException?.Message ?? ex.Message
-                });
+                return BadRequest(new { error = ex.InnerException?.Message ?? ex.Message });
             }
         }
 
         // =============================================
-        // 🔹 Kết thúc phiên sạc
+        // 🔹 Kết thúc phiên sạc (đã có subscription hiển thị)
         // =============================================
         [HttpPost("end")]
         public async Task<IActionResult> End([FromBody] ChargingSessionEndDto dto)
@@ -96,46 +94,69 @@ namespace ChargingStationSystem.Controllers
                         session.EndedAt,
                         session.Status,
                         BillingMonth = session.EndedAt?.Month,
-                        BillingYear = session.EndedAt?.Year
+                        BillingYear = session.EndedAt?.Year,
+                        // ⚡ Thêm Invoice + Subscription hiển thị chi tiết
+                        Invoice = session.Invoice == null ? null : new
+                        {
+                            session.Invoice.InvoiceId,
+                            session.Invoice.Status,
+                            session.Invoice.Total,
+                            Subscription = session.Invoice.Subscription == null ? null : new
+                            {
+                                session.Invoice.Subscription.SubscriptionId,
+                                PlanName = session.Invoice.Subscription.SubscriptionPlan?.PlanName,
+                                DiscountPercent = session.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
+                                FreeIdleMinutes = session.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
+                            }
+                        }
                     }
                 });
             }
             catch (Exception ex)
             {
-                return BadRequest(new
-                {
-                    error = ex.InnerException?.Message ?? ex.Message
-                });
+                return BadRequest(new { error = ex.InnerException?.Message ?? ex.Message });
             }
         }
 
         // =============================================
-        // 🔹 Lấy toàn bộ phiên sạc
+        // 🔹 Lấy toàn bộ phiên sạc (có invoice + subscription)
         // =============================================
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var sessions = await _service.GetAllAsync();
-            return Ok(new
+
+            var result = sessions.Select(s => new
             {
-                count = sessions.Count,
-                items = sessions.Select(s => new
+                s.ChargingSessionId,
+                s.CustomerId,
+                s.CompanyId,
+                s.PortId,
+                s.VehicleId,
+                s.StartedAt,
+                s.EndedAt,
+                s.Status,
+                s.Total,
+                Invoice = s.Invoice == null ? null : new
                 {
-                    s.ChargingSessionId,
-                    s.CustomerId,
-                    s.CompanyId,
-                    s.PortId,
-                    s.VehicleId,
-                    s.StartedAt,
-                    s.EndedAt,
-                    s.Status,
-                    s.Total
-                })
+                    s.Invoice.InvoiceId,
+                    s.Invoice.Status,
+                    s.Invoice.Total,
+                    Subscription = s.Invoice.Subscription == null ? null : new
+                    {
+                        s.Invoice.Subscription.SubscriptionId,
+                        PlanName = s.Invoice.Subscription.SubscriptionPlan?.PlanName,
+                        DiscountPercent = s.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
+                        FreeIdleMinutes = s.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
+                    }
+                }
             });
+
+            return Ok(new { count = result.Count(), items = result });
         }
 
         // =============================================
-        // 🔹 Lấy chi tiết 1 phiên sạc
+        // 🔹 Lấy chi tiết 1 phiên sạc (có invoice + subscription)
         // =============================================
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -162,7 +183,20 @@ namespace ChargingStationSystem.Controllers
                 session.IdleMin,
                 session.StartedAt,
                 session.EndedAt,
-                session.Status
+                session.Status,
+                Invoice = session.Invoice == null ? null : new
+                {
+                    session.Invoice.InvoiceId,
+                    session.Invoice.Status,
+                    session.Invoice.Total,
+                    Subscription = session.Invoice.Subscription == null ? null : new
+                    {
+                        session.Invoice.Subscription.SubscriptionId,
+                        PlanName = session.Invoice.Subscription.SubscriptionPlan?.PlanName,
+                        DiscountPercent = session.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
+                        FreeIdleMinutes = session.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
+                    }
+                }
             });
         }
 
@@ -179,10 +213,7 @@ namespace ChargingStationSystem.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new
-                {
-                    error = ex.InnerException?.Message ?? ex.Message
-                });
+                return BadRequest(new { error = ex.InnerException?.Message ?? ex.Message });
             }
         }
     }

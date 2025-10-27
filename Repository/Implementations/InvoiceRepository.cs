@@ -12,6 +12,7 @@ namespace Repositories.Implementations
         {
             _context = context;
         }
+        public IQueryable<Invoice> Query() => _context.Invoices.AsQueryable(); // ✅ thêm dòng này
 
         // ============================================================
         // 🔹 Lấy tất cả hóa đơn (FULL thông tin)
@@ -92,6 +93,8 @@ namespace Repositories.Implementations
         {
             // ⚙️ Tìm hóa đơn chưa thanh toán trong tháng
             var invoice = await _context.Invoices
+                .Include(i => i.Subscription)
+                    .ThenInclude(s => s.SubscriptionPlan)
                 .Include(i => i.ChargingSessions)
                 .FirstOrDefaultAsync(i =>
                     i.CustomerId == customerId &&
@@ -117,6 +120,13 @@ namespace Repositories.Implementations
 
                 await _context.Invoices.AddAsync(invoice);
                 await _context.SaveChangesAsync();
+
+                // ⚡ Load lại có include subscription
+                invoice = await _context.Invoices
+                    .Include(i => i.Subscription)
+                        .ThenInclude(s => s.SubscriptionPlan)
+                    .FirstOrDefaultAsync(i => i.InvoiceId == invoice.InvoiceId);
+
                 return invoice;
             }
 
@@ -137,6 +147,12 @@ namespace Repositories.Implementations
 
                 await _context.Invoices.AddAsync(newInvoice);
                 await _context.SaveChangesAsync();
+
+                newInvoice = await _context.Invoices
+                    .Include(i => i.Subscription)
+                        .ThenInclude(s => s.SubscriptionPlan)
+                    .FirstOrDefaultAsync(i => i.InvoiceId == newInvoice.InvoiceId);
+
                 return newInvoice;
             }
 
@@ -171,4 +187,5 @@ namespace Repositories.Implementations
 
         public async Task SaveAsync() => await _context.SaveChangesAsync();
     }
+
 }

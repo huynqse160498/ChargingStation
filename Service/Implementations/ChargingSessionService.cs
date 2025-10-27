@@ -127,8 +127,12 @@ namespace Services.Implementations
         // ============================================================
         public async Task<ChargingSession> EndSessionAsync(ChargingSessionEndDto dto)
         {
+            // 🔹 1. Kiểm tra phiên sạc
             var session = await _sessionRepo.GetByIdAsync(dto.ChargingSessionId)
                 ?? throw new Exception("Không tìm thấy phiên sạc.");
+
+            if (session.Status == "Completed")
+                throw new Exception("Phiên sạc này đã kết thúc trước đó.");
 
             var rule = await _pricingRepo.GetByIdAsync(session.PricingRuleId)
                 ?? throw new Exception("Không tìm thấy PricingRule.");
@@ -136,24 +140,23 @@ namespace Services.Implementations
             var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
                 ?? throw new Exception("Không tìm thấy xe cho phiên sạc này.");
 
-            if (vehicle.BatteryCapacity == null || vehicle.BatteryCapacity <= 0)
+            if (vehicle.BatteryCapacity is null or <= 0)
                 throw new Exception("Dung lượng pin của xe không hợp lệ.");
 
+            // 🔹 2. Tính năng lượng, SOC, thời gian, idle
             int startSoc = session.StartSoc ?? 50;
             int endSoc = dto.EndSoc ?? new Random().Next(startSoc + 10, 101);
             if (endSoc <= startSoc)
                 throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
 
-            session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
             session.EndSoc = endSoc;
             session.EndedAt = DateTime.Now;
-            session.DurationMin = (int)(DateTime.Now - session.StartedAt!.Value).TotalMinutes;
-            session.IdleMin = _rand.Next(0, 10);
+            session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
+            session.DurationMin = (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
+            session.IdleMin = new Random().Next(0, 10);
 
-            var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(
-                session.CustomerId,
-                session.CompanyId
-            );
+            // 🔹 3. Xác định gói đăng ký đang hoạt động (Customer hoặc Company)
+            var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
             decimal pricePerKwh = rule.PricePerKwh;
             decimal idleFeePerMin = rule.IdleFeePerMin;
@@ -163,6 +166,7 @@ namespace Services.Implementations
             int actualIdle = session.IdleMin ?? 0;
             int chargeableIdle = Math.Max(actualIdle - freeIdle, 0);
 
+            // 🔹 4. Tính tiền
             decimal subtotal = (session.EnergyKwh ?? 0M) * pricePerKwh + chargeableIdle * idleFeePerMin;
             if (discountPercent > 0)
                 subtotal -= subtotal * (discountPercent / 100M);
@@ -175,7 +179,7 @@ namespace Services.Implementations
 
             await _sessionRepo.UpdateAsync(session);
 
-            // 🔹 Giải phóng port
+            // 🔹 5. Giải phóng port
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
             {
@@ -183,7 +187,7 @@ namespace Services.Implementations
                 await _portRepo.UpdateAsync(port);
             }
 
-            // 🔹 Cập nhật Booking
+            // 🔹 6. Cập nhật Booking (nếu có)
             if (session.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(session.BookingId.Value);
@@ -194,15 +198,13 @@ namespace Services.Implementations
                 }
             }
 
-            // 🔹 Tạo hoặc lấy invoice phù hợp (⚠️ sửa lỗi FK)
+            // 🔹 7. Lấy hoặc tạo hóa đơn tháng
             var now = DateTime.Now;
             var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(
-                session.CustomerId,
-                session.CompanyId,
-                now.Month,
-                now.Year
+                session.CustomerId, session.CompanyId, now.Month, now.Year
             );
 
+            // Nếu hóa đơn đã thanh toán → tạo mới
             if (invoice.Status == "Paid")
             {
                 invoice = new Invoice
@@ -211,23 +213,44 @@ namespace Services.Implementations
                     CompanyId = session.CompanyId,
                     BillingMonth = now.Month,
                     BillingYear = now.Year,
-                    CreatedAt = DateTime.Now,
                     Status = "Unpaid",
-                    IsMonthlyInvoice = true
+                    IsMonthlyInvoice = true,
+                    CreatedAt = DateTime.Now,
+                    UpdatedAt = DateTime.Now
                 };
                 await _invoiceRepo.AddAsync(invoice);
             }
 
+            // 🔹 8. Gắn Subscription (nếu có)
             if (activeSub != null)
                 invoice.SubscriptionId = activeSub.SubscriptionId;
 
+            // 🔹 9. Gắn session vào invoice (chống null list)
+            invoice.ChargingSessions ??= new List<ChargingSession>();
             invoice.ChargingSessions.Add(session);
+
+            // 🔹 10. Cập nhật tổng hóa đơn
             invoice.Total = (invoice.Total ?? 0M) + session.Total;
             invoice.UpdatedAt = DateTime.Now;
 
             await _invoiceRepo.SaveAsync();
+
+            // 🔹 11. Đảm bảo khóa ngoại InvoiceId cập nhật trong session
+            session.InvoiceId = invoice.InvoiceId;
+            await _sessionRepo.UpdateAsync(session);
+
+            // 🔹 12. Load lại invoice đầy đủ để controller hiển thị
+            invoice = await _invoiceRepo.Query()
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Include(i => i.Subscription)
+                    .ThenInclude(s => s.SubscriptionPlan)
+                .FirstOrDefaultAsync(i => i.InvoiceId == invoice.InvoiceId);
+
+            session.Invoice = invoice;
             return session;
         }
+
 
         // ============================================================
         // 🔹 CRUD
