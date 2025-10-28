@@ -14,5 +14,11 @@ namespace Repositories.Interfaces
         Task<Subscription> UpdateAsync(Subscription entity);     
         Task DeleteAsync(Subscription entity);
         Task<Subscription?> GetActiveByCustomerOrCompanyAsync(int? customerId, int? companyId);
+
+        // ADD: true nếu user đang có Subscription Status Pending/Active
+        Task<bool> HasCurrentByCustomerAsync(int customerId);
+
+        // ADD: true nếu company đang có Subscription Status Pending/Active
+        Task<bool> HasCurrentByCompanyAsync(int companyId);
     }
 }
