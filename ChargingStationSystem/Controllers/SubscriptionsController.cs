@@ -21,6 +21,7 @@ namespace ChargingStationSystem.Controllers
         {
             try { return Ok(await _svc.GetByIdAsync(id)); }
             catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
         }
 
         // ======================= [ CREATE / UPDATE / DELETE ] ===================
@@ -33,6 +34,7 @@ namespace ChargingStationSystem.Controllers
                 return CreatedAtAction(nameof(GetById), new { id = created.SubscriptionId }, created);
             }
             catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
         }
 
         [HttpPut("{id:int}")]

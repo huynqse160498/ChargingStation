@@ -22,6 +22,28 @@ namespace Services.Implementations
             _notiRepo = notiRepo;
         }
 
+        // ======================= [ ADD: HELPERS ] =======================
+        // ADD: đúng 1 chủ sở hữu
+        private static void EnsureExactlyOneOwner(int? customerId, int? companyId)
+        {   
+            var count = (customerId.HasValue ? 1 : 0) + (companyId.HasValue ? 1 : 0);
+            if (count != 1) throw new InvalidOperationException("Phải chọn đúng 1: Customer hoặc Company.");
+        }
+
+        // ADD: ràng buộc loại plan ↔ chủ sở hữu + message tiếng Việt
+        private static void EnsureOwnerMatchesPlan(SubscriptionPlan plan, int? customerId, int? companyId)
+        {
+            if (plan.IsForCompany)
+            {
+                if (!companyId.HasValue) throw new InvalidOperationException("Bạn không phải doanh nghiệp.");
+                if (customerId.HasValue) throw new InvalidOperationException("Phải chọn đúng 1: Customer hoặc Company.");
+            }
+            else
+            {
+                if (!customerId.HasValue) throw new InvalidOperationException("Bạn không phải cá nhân.");
+                if (companyId.HasValue) throw new InvalidOperationException("Phải chọn đúng 1: Customer hoặc Company.");
+            }
+        }
         // ======================= [ GET - ALL ] =======================
         public async Task<IEnumerable<SubscriptionReadDto>> GetAllAsync()
             => (await _repo.GetAllAsync()).Select(MapToRead);
@@ -36,21 +58,40 @@ namespace Services.Implementations
         // ======================= [ CREATE ] ==========================
         public async Task<SubscriptionReadDto> CreateAsync(SubscriptionCreateDto dto)
         {
+            // ADD: đúng 1 chủ sở hữu
+            EnsureExactlyOneOwner(dto.CustomerId, dto.CompanyId);
+
             var plan = await _planRepo.GetByIdAsync(dto.SubscriptionPlanId)
                        ?? throw new KeyNotFoundException("Subscription plan không tồn tại.");
+
+            // ADD: ràng buộc loại plan ↔ chủ sở hữu
+            EnsureOwnerMatchesPlan(plan, dto.CustomerId, dto.CompanyId);
+
+            // ADD: chặn mua thêm nếu đang có gói Pending/Active
+            if (dto.CustomerId.HasValue)
+            {
+                var has = await _repo.HasCurrentByCustomerAsync(dto.CustomerId.Value); // ADD
+                if (has) throw new InvalidOperationException("Bạn đang có gói còn hiệu lực, không thể mua thêm."); // ADD
+            }
+            else if (dto.CompanyId.HasValue)
+            {
+                var has = await _repo.HasCurrentByCompanyAsync(dto.CompanyId.Value); // ADD
+                if (has) throw new InvalidOperationException("Công ty đang có gói còn hiệu lực, không thể mua thêm."); // ADD
+            }
+
 
             // ✅ Gói mới tạo -> trạng thái Pending, chưa kích hoạt
             var sub = new Subscription
             {
                 SubscriptionPlanId = dto.SubscriptionPlanId,
-                CustomerId = dto.CustomerId ?? 0,
+                CustomerId = dto.CustomerId,
                 CompanyId = dto.CompanyId,
                 BillingCycle = dto.BillingCycle ?? "Monthly",
                 AutoRenew = false, // ❗ manual renew
                 Status = "Pending", // ❗ Chưa kích hoạt
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
-            };
+            };  
 
             var saved = await _repo.AddAsync(sub);
             await _notiRepo.AddAsync(new Notification
@@ -80,6 +121,12 @@ namespace Services.Implementations
             {
                 var plan = await _planRepo.GetByIdAsync(planId)
            ?? throw new KeyNotFoundException("Subscription plan không tồn tại.");
+
+                // ADD: giữ nguyên owner hiện tại, chỉ cho đổi plan nếu hợp lệ
+                int? currentCustomer = e.CustomerId; ; // ADD
+                int? currentCompany = e.CompanyId;                                      // ADD
+                EnsureOwnerMatchesPlan(plan, currentCustomer, currentCompany);
+
                 e.SubscriptionPlanId = plan.SubscriptionPlanId;
             }
 
@@ -111,7 +158,7 @@ namespace Services.Implementations
         private static SubscriptionReadDto MapToRead(Subscription s) => new SubscriptionReadDto
         {
             SubscriptionId = s.SubscriptionId,
-            SubscriptionPlanId = s.SubscriptionPlanId,
+            SubscriptionPlanId = s.SubscriptionPlanId,  
             PlanName = s.SubscriptionPlan?.PlanName ?? "",
             CustomerId = s.CustomerId,
             CompanyId = s.CompanyId,
