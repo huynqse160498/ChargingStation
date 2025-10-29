@@ -136,7 +136,6 @@ namespace Services.Implementations
         // ============================================================
         public async Task<ChargingSession> EndSessionAsync(ChargingSessionEndDto dto)
         {
-            // 1️⃣ Kiểm tra phiên sạc
             var session = await _sessionRepo.GetByIdAsync(dto.ChargingSessionId)
                 ?? throw new Exception("Không tìm thấy phiên sạc.");
 
@@ -152,7 +151,7 @@ namespace Services.Implementations
             if (vehicle.BatteryCapacity is null or <= 0)
                 throw new Exception("Dung lượng pin của xe không hợp lệ.");
 
-            // 2️⃣ Tính năng lượng, SOC, thời gian, idle
+            // === 1️⃣ Tính năng lượng, SOC, thời gian, idle ===
             int startSoc = session.StartSoc ?? 50;
             int endSoc = dto.EndSoc ?? new Random().Next(startSoc + 10, 101);
             if (endSoc <= startSoc)
@@ -164,11 +163,8 @@ namespace Services.Implementations
             session.DurationMin = (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
             session.IdleMin = new Random().Next(0, 10);
 
-            // 3️⃣ Lấy gói đăng ký đang hoạt động
-            var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(
-                session.CustomerId > 0 ? session.CustomerId : null,
-                session.CompanyId > 0 ? session.CompanyId : null
-            );
+            // === 2️⃣ Lấy gói đăng ký đang hoạt động (ưu tiên Customer) ===
+            var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
             decimal pricePerKwh = rule.PricePerKwh;
             decimal idleFeePerMin = rule.IdleFeePerMin;
@@ -178,19 +174,27 @@ namespace Services.Implementations
             int actualIdle = session.IdleMin ?? 0;
             int chargeableIdle = Math.Max(actualIdle - freeIdle, 0);
 
-            // 4️⃣ Tính tiền
-            decimal subtotal = (session.EnergyKwh ?? 0M) * pricePerKwh + chargeableIdle * idleFeePerMin;
+            // === 3️⃣ Tính tiền ===
+            decimal subtotalBeforeDiscount = (session.EnergyKwh ?? 0M) * pricePerKwh + chargeableIdle * idleFeePerMin;
+            decimal subtotal = subtotalBeforeDiscount;
+
+            bool subApplied = false;
+
             if (discountPercent > 0)
+            {
                 subtotal -= subtotal * (discountPercent / 100M);
+                subApplied = true;
+            }
 
             session.Subtotal = Math.Round(subtotal, 2);
             session.Tax = Math.Round(session.Subtotal.Value * 0.1M, 2);
             session.Total = session.Subtotal + session.Tax;
             session.Status = "Completed";
             session.UpdatedAt = DateTime.Now;
+
             await _sessionRepo.UpdateAsync(session);
 
-            // 5️⃣ Giải phóng port
+            // === 4️⃣ Giải phóng port ===
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
             {
@@ -198,7 +202,7 @@ namespace Services.Implementations
                 await _portRepo.UpdateAsync(port);
             }
 
-            // 6️⃣ Cập nhật Booking (nếu có)
+            // === 5️⃣ Cập nhật Booking (nếu có) ===
             if (session.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(session.BookingId.Value);
@@ -209,13 +213,10 @@ namespace Services.Implementations
                 }
             }
 
-            // 7️⃣ Lấy hoặc tạo hóa đơn tháng
+            // === 6️⃣ Lấy hoặc tạo hóa đơn tháng ===
             var now = DateTime.Now;
-            var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(
-                session.CustomerId, session.CompanyId, now.Month, now.Year
-            );
+            var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(session.CustomerId, session.CompanyId, now.Month, now.Year);
 
-            // Nếu hóa đơn đã thanh toán → tạo mới
             if (invoice.Status == "Paid")
             {
                 invoice = new Invoice
@@ -232,14 +233,13 @@ namespace Services.Implementations
                 await _invoiceRepo.AddAsync(invoice);
             }
 
-            // 8️⃣ Gắn Subscription (nếu có)
             if (activeSub != null)
             {
                 invoice.SubscriptionId = activeSub.SubscriptionId;
                 await _invoiceRepo.UpdateAsync(invoice);
             }
 
-            // 9️⃣ Gắn session vào invoice
+            // === 7️⃣ Gắn session vào invoice ===
             invoice.ChargingSessions ??= new List<ChargingSession>();
             invoice.ChargingSessions.Add(session);
             invoice.Total = (invoice.Total ?? 0M) + session.Total;
@@ -247,11 +247,10 @@ namespace Services.Implementations
 
             await _invoiceRepo.SaveAsync();
 
-            // 🔟 Ghi lại InvoiceId vào session
             session.InvoiceId = invoice.InvoiceId;
             await _sessionRepo.UpdateAsync(session);
 
-            // ✅ Load lại invoice đầy đủ
+            // === 8️⃣ Load lại invoice đầy đủ ===
             invoice = await _invoiceRepo.Query()
                 .AsNoTracking()
                 .AsSplitQuery()
@@ -260,8 +259,13 @@ namespace Services.Implementations
                 .FirstOrDefaultAsync(i => i.InvoiceId == invoice.InvoiceId);
 
             session.Invoice = invoice;
+
+            // ✅ In log (debug)
+            Console.WriteLine($"[SubDebug] AppliedSub = {subApplied}, Discount = {discountPercent}, FreeIdle = {freeIdle}, SubId = {activeSub?.SubscriptionId}");
+
             return session;
         }
+
 
         // ============================================================
         // 🔹 CRUD

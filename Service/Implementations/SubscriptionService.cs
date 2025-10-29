@@ -5,7 +5,6 @@ using Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Services.Implementations
@@ -15,92 +14,93 @@ namespace Services.Implementations
         private readonly ISubscriptionRepository _repo;
         private readonly ISubscriptionPlanRepository _planRepo;
         private readonly INotificationRepository _notiRepo;
-        public SubscriptionService(ISubscriptionRepository repo, ISubscriptionPlanRepository planRepo, INotificationRepository notiRepo)
+
+        public SubscriptionService(
+            ISubscriptionRepository repo,
+            ISubscriptionPlanRepository planRepo,
+            INotificationRepository notiRepo)
         {
             _repo = repo;
             _planRepo = planRepo;
             _notiRepo = notiRepo;
         }
 
-        // ======================= [ ADD: HELPERS ] =======================
-        // ADD: đúng 1 chủ sở hữu
+        // ======================= [ VALIDATION HELPERS ] =======================
         private static void EnsureExactlyOneOwner(int? customerId, int? companyId)
-        {   
+        {
             var count = (customerId.HasValue ? 1 : 0) + (companyId.HasValue ? 1 : 0);
-            if (count != 1) throw new InvalidOperationException("Phải chọn đúng 1: Customer hoặc Company.");
+            if (count != 1)
+                throw new InvalidOperationException("Phải chọn đúng 1: Customer hoặc Company.");
         }
 
-        // ADD: ràng buộc loại plan ↔ chủ sở hữu + message tiếng Việt
         private static void EnsureOwnerMatchesPlan(SubscriptionPlan plan, int? customerId, int? companyId)
         {
             if (plan.IsForCompany)
             {
-                if (!companyId.HasValue) throw new InvalidOperationException("Bạn không phải doanh nghiệp.");
-                if (customerId.HasValue) throw new InvalidOperationException("Phải chọn đúng 1: Customer hoặc Company.");
+                if (!companyId.HasValue)
+                    throw new InvalidOperationException("Gói này chỉ dành cho doanh nghiệp.");
             }
             else
             {
-                if (!customerId.HasValue) throw new InvalidOperationException("Bạn không phải cá nhân.");
-                if (companyId.HasValue) throw new InvalidOperationException("Phải chọn đúng 1: Customer hoặc Company.");
+                if (!customerId.HasValue)
+                    throw new InvalidOperationException("Gói này chỉ dành cho cá nhân.");
             }
         }
+
         // ======================= [ GET - ALL ] =======================
         public async Task<IEnumerable<SubscriptionReadDto>> GetAllAsync()
             => (await _repo.GetAllAsync()).Select(MapToRead);
 
-        // ======================= [ GET - BY ID ] =====================
         public async Task<SubscriptionReadDto> GetByIdAsync(int id)
         {
-            var s = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException("Subscription không tồn tại.");
+            var s = await _repo.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException("Subscription không tồn tại.");
             return MapToRead(s);
         }
 
-        // ======================= [ CREATE ] ==========================
+        // ======================= [ CREATE ] =======================
         public async Task<SubscriptionReadDto> CreateAsync(SubscriptionCreateDto dto)
         {
-            // ADD: đúng 1 chủ sở hữu
             EnsureExactlyOneOwner(dto.CustomerId, dto.CompanyId);
 
             var plan = await _planRepo.GetByIdAsync(dto.SubscriptionPlanId)
-                       ?? throw new KeyNotFoundException("Subscription plan không tồn tại.");
+                ?? throw new KeyNotFoundException("Không tìm thấy gói dịch vụ.");
 
-            // ADD: ràng buộc loại plan ↔ chủ sở hữu
             EnsureOwnerMatchesPlan(plan, dto.CustomerId, dto.CompanyId);
 
-            // ADD: chặn mua thêm nếu đang có gói Pending/Active
             if (dto.CustomerId.HasValue)
             {
-                var has = await _repo.HasCurrentByCustomerAsync(dto.CustomerId.Value); // ADD
-                if (has) throw new InvalidOperationException("Bạn đang có gói còn hiệu lực, không thể mua thêm."); // ADD
+                if (await _repo.HasCurrentByCustomerAsync(dto.CustomerId.Value))
+                    throw new InvalidOperationException("Khách hàng đã có gói đang hoạt động.");
             }
             else if (dto.CompanyId.HasValue)
             {
-                var has = await _repo.HasCurrentByCompanyAsync(dto.CompanyId.Value); // ADD
-                if (has) throw new InvalidOperationException("Công ty đang có gói còn hiệu lực, không thể mua thêm."); // ADD
+                if (await _repo.HasCurrentByCompanyAsync(dto.CompanyId.Value))
+                    throw new InvalidOperationException("Công ty đã có gói đang hoạt động.");
             }
 
-
-            // ✅ Gói mới tạo -> trạng thái Pending, chưa kích hoạt
             var sub = new Subscription
             {
                 SubscriptionPlanId = dto.SubscriptionPlanId,
                 CustomerId = dto.CustomerId,
                 CompanyId = dto.CompanyId,
                 BillingCycle = dto.BillingCycle ?? "Monthly",
-                AutoRenew = false, // ❗ manual renew
-                Status = "Pending", // ❗ Chưa kích hoạt
+                AutoRenew = false,
+                Status = "Pending",
                 CreatedAt = DateTime.Now,
                 UpdatedAt = DateTime.Now
-            };  
+            };
 
             var saved = await _repo.AddAsync(sub);
+
+            // 🔹 Gửi thông báo tự động
             await _notiRepo.AddAsync(new Notification
             {
                 CustomerId = sub.CustomerId,
                 CompanyId = sub.CompanyId,
                 SubscriptionId = sub.SubscriptionId,
                 Title = "Đăng ký gói dịch vụ thành công",
-                Message = $"Bạn đã đăng ký gói '{plan.PlanName}' thành công. Thời hạn sử dụng đến {sub.EndDate:dd/MM/yyyy}.",
+                Message = $"Bạn đã đăng ký gói '{plan.PlanName}' thành công. Vui lòng thanh toán để kích hoạt.",
                 Type = "Subscription",
                 Priority = "Normal",
                 ActionUrl = $"/subscriptions/{sub.SubscriptionId}"
@@ -110,23 +110,18 @@ namespace Services.Implementations
             return MapToRead(saved);
         }
 
-
-        // ======================= [ UPDATE ] ==========================
+        // ======================= [ UPDATE ] =======================
         public async Task<SubscriptionReadDto> UpdateAsync(int id, SubscriptionUpdateDto dto)
         {
-            var e = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException("Subscription không tồn tại.");
+            var e = await _repo.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException("Subscription không tồn tại.");
 
-            // planId
-            if (dto.SubscriptionPlanId is int planId)                    // FIX
+            if (dto.SubscriptionPlanId is int planId)
             {
                 var plan = await _planRepo.GetByIdAsync(planId)
-           ?? throw new KeyNotFoundException("Subscription plan không tồn tại.");
+                    ?? throw new KeyNotFoundException("Subscription plan không tồn tại.");
 
-                // ADD: giữ nguyên owner hiện tại, chỉ cho đổi plan nếu hợp lệ
-                int? currentCustomer = e.CustomerId; ; // ADD
-                int? currentCompany = e.CompanyId;                                      // ADD
-                EnsureOwnerMatchesPlan(plan, currentCustomer, currentCompany);
-
+                EnsureOwnerMatchesPlan(plan, e.CustomerId, e.CompanyId);
                 e.SubscriptionPlanId = plan.SubscriptionPlanId;
             }
 
@@ -143,22 +138,24 @@ namespace Services.Implementations
                 e.Status = dto.Status;
 
             e.UpdatedAt = DateTime.Now;
+
             var saved = await _repo.UpdateAsync(e);
             return MapToRead(saved);
         }
 
-        // ======================= [ DELETE ] ==========================
+        // ======================= [ DELETE ] =======================
         public async Task DeleteAsync(int id)
         {
-            var e = await _repo.GetByIdAsync(id) ?? throw new KeyNotFoundException("Subscription không tồn tại.");
+            var e = await _repo.GetByIdAsync(id)
+                ?? throw new KeyNotFoundException("Subscription không tồn tại.");
             await _repo.DeleteAsync(e);
         }
 
-        // ======================= [ MAPPING ] =========================
+        // ======================= [ MAPPING ] =======================
         private static SubscriptionReadDto MapToRead(Subscription s) => new SubscriptionReadDto
         {
             SubscriptionId = s.SubscriptionId,
-            SubscriptionPlanId = s.SubscriptionPlanId,  
+            SubscriptionPlanId = s.SubscriptionPlanId,
             PlanName = s.SubscriptionPlan?.PlanName ?? "",
             CustomerId = s.CustomerId,
             CompanyId = s.CompanyId,
@@ -171,4 +168,3 @@ namespace Services.Implementations
         };
     }
 }
-

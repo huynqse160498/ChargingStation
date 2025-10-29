@@ -63,6 +63,9 @@ namespace ChargingStationSystem.Controllers
         // =============================================
         // 🔹 Kết thúc phiên sạc (đã có subscription hiển thị)
         // =============================================
+        // =============================================
+        // 🔹 Kết thúc phiên sạc (hiển thị gói áp dụng rõ ràng)
+        // =============================================
         [HttpPost("end")]
         public async Task<IActionResult> End([FromBody] ChargingSessionEndDto dto)
         {
@@ -95,19 +98,22 @@ namespace ChargingStationSystem.Controllers
                         session.Status,
                         BillingMonth = session.EndedAt?.Month,
                         BillingYear = session.EndedAt?.Year,
-                        // ⚡ Thêm Invoice + Subscription hiển thị chi tiết
+
+                        // ⚡ Hiển thị hóa đơn
                         Invoice = session.Invoice == null ? null : new
                         {
                             session.Invoice.InvoiceId,
                             session.Invoice.Status,
-                            session.Invoice.Total,
-                            Subscription = session.Invoice.Subscription == null ? null : new
-                            {
-                                session.Invoice.Subscription.SubscriptionId,
-                                PlanName = session.Invoice.Subscription.SubscriptionPlan?.PlanName,
-                                DiscountPercent = session.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
-                                FreeIdleMinutes = session.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
-                            }
+                            session.Invoice.Total
+                        },
+
+                        // ⚡ Hiển thị gói subscription đã áp dụng
+                        AppliedSubscription = session.Invoice?.Subscription == null ? null : new
+                        {
+                            session.Invoice.Subscription.SubscriptionId,
+                            PlanName = session.Invoice.Subscription.SubscriptionPlan?.PlanName,
+                            DiscountPercent = session.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
+                            FreeIdleMinutes = session.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
                         }
                     }
                 });
@@ -119,7 +125,7 @@ namespace ChargingStationSystem.Controllers
         }
 
         // =============================================
-        // 🔹 Lấy toàn bộ phiên sạc (có invoice + subscription)
+        // 🔹 Lấy toàn bộ phiên sạc (hiển thị gói áp dụng)
         // =============================================
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -131,32 +137,38 @@ namespace ChargingStationSystem.Controllers
                 s.ChargingSessionId,
                 s.CustomerId,
                 s.CompanyId,
-                s.PortId,
                 s.VehicleId,
+                s.PortId,
                 s.StartedAt,
                 s.EndedAt,
                 s.Status,
                 s.Total,
+                // Hóa đơn cơ bản
                 Invoice = s.Invoice == null ? null : new
                 {
                     s.Invoice.InvoiceId,
                     s.Invoice.Status,
-                    s.Invoice.Total,
-                    Subscription = s.Invoice.Subscription == null ? null : new
-                    {
-                        s.Invoice.Subscription.SubscriptionId,
-                        PlanName = s.Invoice.Subscription.SubscriptionPlan?.PlanName,
-                        DiscountPercent = s.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
-                        FreeIdleMinutes = s.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
-                    }
+                    s.Invoice.Total
+                },
+                // Gói đã áp dụng
+                AppliedSubscription = s.Invoice?.Subscription == null ? null : new
+                {
+                    s.Invoice.Subscription.SubscriptionId,
+                    PlanName = s.Invoice.Subscription.SubscriptionPlan?.PlanName,
+                    DiscountPercent = s.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
+                    FreeIdleMinutes = s.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
                 }
             });
 
-            return Ok(new { count = result.Count(), items = result });
+            return Ok(new
+            {
+                count = result.Count(),
+                items = result
+            });
         }
 
         // =============================================
-        // 🔹 Lấy chi tiết 1 phiên sạc (có invoice + subscription)
+        // 🔹 Lấy chi tiết 1 phiên sạc (hiển thị gói áp dụng)
         // =============================================
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
@@ -184,21 +196,26 @@ namespace ChargingStationSystem.Controllers
                 session.StartedAt,
                 session.EndedAt,
                 session.Status,
+
+                // Thông tin hóa đơn cơ bản
                 Invoice = session.Invoice == null ? null : new
                 {
                     session.Invoice.InvoiceId,
                     session.Invoice.Status,
-                    session.Invoice.Total,
-                    Subscription = session.Invoice.Subscription == null ? null : new
-                    {
-                        session.Invoice.Subscription.SubscriptionId,
-                        PlanName = session.Invoice.Subscription.SubscriptionPlan?.PlanName,
-                        DiscountPercent = session.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
-                        FreeIdleMinutes = session.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
-                    }
+                    session.Invoice.Total
+                },
+
+                // Gói đã áp dụng
+                AppliedSubscription = session.Invoice?.Subscription == null ? null : new
+                {
+                    session.Invoice.Subscription.SubscriptionId,
+                    PlanName = session.Invoice.Subscription.SubscriptionPlan?.PlanName,
+                    DiscountPercent = session.Invoice.Subscription.SubscriptionPlan?.DiscountPercent,
+                    FreeIdleMinutes = session.Invoice.Subscription.SubscriptionPlan?.FreeIdleMinutes
                 }
             });
         }
+
 
         // =============================================
         // 🔹 Xóa phiên sạc

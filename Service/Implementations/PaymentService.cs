@@ -221,17 +221,27 @@ namespace Services.Implementations
                 UpdatedAt = DateTime.Now
             };
 
-            // ✅ Chỉ gia hạn nếu chưa hoạt động hoặc đã hết hạn
-            if (sub.Status != "Active" || sub.EndDate == null || sub.EndDate < DateTime.Now)
+            // ✅ Phân biệt: lần đầu kích hoạt / gia hạn thêm
+            var now = DateTime.Now;
+            if (sub.Status != "Active" || sub.EndDate == null || sub.EndDate < now)
             {
-                sub.StartDate = DateTime.Now;
-                sub.EndDate = DateTime.Now.AddMonths(1);
+                // 🔹 Nếu chưa active hoặc đã hết hạn → kích hoạt mới
+                sub.StartDate = now;
+                sub.EndDate = now.AddMonths(1);
                 sub.NextBillingDate = sub.EndDate;
                 sub.Status = "Active";
-                sub.UpdatedAt = DateTime.Now;
-                await _subscriptionRepo.UpdateAsync(sub);
+            }
+            else
+            {
+                // 🔹 Nếu vẫn còn active → gia hạn thêm 1 tháng
+                sub.EndDate = sub.EndDate.Value.AddMonths(1);
+                sub.NextBillingDate = sub.EndDate;
             }
 
+            sub.UpdatedAt = now;
+            await _subscriptionRepo.UpdateAsync(sub);
+
+            // ✅ Lưu payment
             await _paymentRepo.AddAsync(payment);
             await _paymentRepo.SaveAsync();
 
@@ -239,32 +249,40 @@ namespace Services.Implementations
             var invoice = new Invoice
             {
                 CustomerId = sub.CustomerId,
+                CompanyId = sub.CompanyId,
                 SubscriptionId = sub.SubscriptionId,
-                BillingMonth = DateTime.Now.Month,
-                BillingYear = DateTime.Now.Year,
+                BillingMonth = now.Month,
+                BillingYear = now.Year,
                 Subtotal = amount,
                 Tax = Math.Round(amount * 0.1M, 2),
                 Total = Math.Round(amount * 1.1M, 2),
                 Status = "Paid",
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now,
+                CreatedAt = now,
+                UpdatedAt = now,
                 IsMonthlyInvoice = false
             };
             await _invoiceRepo.AddAsync(invoice);
+
+            // 🔔 Gửi thông báo
+            string message = sub.Status == "Active"
+                ? $"Gói {plan.PlanName} của bạn đã được gia hạn đến {sub.EndDate:dd/MM/yyyy}."
+                : $"Gói {plan.PlanName} của bạn đã được kích hoạt và có hiệu lực đến {sub.EndDate:dd/MM/yyyy}.";
+
             await _notiRepo.AddAsync(new Notification
             {
                 CustomerId = sub.CustomerId,
                 CompanyId = sub.CompanyId,
                 SubscriptionId = sub.SubscriptionId,
-                Title = "Gia hạn gói đăng ký thành công",
-                Message = $"Gói {plan.PlanName} của bạn đã được gia hạn đến {sub.EndDate:dd/MM/yyyy}.",
+                Title = "Thanh toán gói đăng ký thành công",
+                Message = message,
                 Type = "Subscription",
                 Priority = "High",
                 ActionUrl = $"/subscriptions/{sub.SubscriptionId}"
             });
 
-            return $"✅ Thanh toán & gia hạn thành công Subscription #{sub.SubscriptionId} đến {sub.EndDate:dd/MM/yyyy}.";
+            return $"✅ Thanh toán thành công Subscription #{sub.SubscriptionId}. Hiệu lực đến {sub.EndDate:dd/MM/yyyy}.";
         }
+
 
     }
 }
