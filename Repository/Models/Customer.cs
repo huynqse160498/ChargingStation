@@ -19,6 +19,9 @@ public partial class Customer
 
     public string Phone { get; set; }
 
+    [EmailAddress]
+    [StringLength(100)]
+    public string Email { get; set; }   // ✅ Thêm mới
     public string Address { get; set; }
 
     public DateOnly? DateOfBirth { get; set; }

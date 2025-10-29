@@ -19,5 +19,9 @@ namespace Services.Interfaces
         Task<bool> UpdateCustomerAsync(UpdateCustomerDto dto);
         Task<bool> UpdateCompanyAsync(UpdateCompanyDto dto);
         Task<string> UpdateAvatarAsync(int accountId, IFormFile file);
+        Task<string> ChangePasswordAsync(ChangePasswordDto dto);
+        Task<string> ForgotPasswordAsync(ForgotPasswordDto dto);
+        Task<string> ResetPasswordAsync(ResetPasswordDto dto);
+
     }
 }

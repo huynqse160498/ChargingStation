@@ -16,6 +16,8 @@ namespace Repositories.DTOs
         [StringLength(255, ErrorMessage = "Địa chỉ không được vượt quá 255 ký tự")]
         public string Address { get; set; }
 
-       
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
+        public string Email { get; set; } // ✅ thêm dòng này
+
     }
 }

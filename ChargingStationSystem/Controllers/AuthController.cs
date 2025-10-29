@@ -129,6 +129,31 @@ namespace ChargingStationSystem.Controllers
             var imageUrl = await _authService.UpdateAvatarAsync(accountId, file);
             return Ok(new { message = "Tải ảnh đại diện thành công", avatarUrl = imageUrl });
         }
+        // -------------------- 🔹 Đổi mật khẩu --------------------
+        [HttpPut("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            var message = await _authService.ChangePasswordAsync(dto);
+            return Ok(new { message });
+        }
+
+        // -------------------- 🔹 Quên mật khẩu --------------------
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            var message = await _authService.ForgotPasswordAsync(dto);
+            return Ok(new { message });
+        }
+
+        // -------------------- 🔹 Đặt lại mật khẩu --------------------
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var message = await _authService.ResetPasswordAsync(dto);
+            return Ok(new { message });
+        }
 
     }
 }

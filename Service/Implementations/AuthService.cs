@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -67,6 +68,7 @@ namespace Services.Implementations
                 AccountId = account.AccountId,
                 FullName = dto.FullName ?? dto.UserName,
                 Phone = dto.Phone,
+                Email = dto.Email,
                 CreatedAt = DateTime.Now,
                 Status = "Active"
             };
@@ -222,7 +224,7 @@ namespace Services.Implementations
             customer.Phone = dto.Phone ?? customer.Phone;
             customer.Address = dto.Address ?? customer.Address;
             customer.UpdatedAt = DateTime.Now;
-
+            customer.Email = dto.Email ?? customer.Email;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -261,5 +263,63 @@ namespace Services.Implementations
 
             return imageUrl;
         }
+        public async Task<string> ChangePasswordAsync(ChangePasswordDto dto)
+        {
+            var account = await _accountRepository.GetByIdAsync(dto.AccountId);
+            if (account == null)
+                return "Không tìm thấy tài khoản.";
+
+            var verify = _passwordHasher.VerifyHashedPassword(account, account.PassWord, dto.OldPassword);
+            if (verify == PasswordVerificationResult.Failed)
+                return "Mật khẩu cũ không chính xác.";
+
+            account.PassWord = _passwordHasher.HashPassword(account, dto.NewPassword);
+            account.UpdatedAt = DateTime.Now;
+
+            await _accountRepository.UpdateAsync(account);
+            return "Đổi mật khẩu thành công.";
+        }
+        public async Task<string> ForgotPasswordAsync(ForgotPasswordDto dto)
+        {
+            var account = await _context.Accounts
+                .Include(a => a.Customers)
+                .Include(a => a.Company)
+                .FirstOrDefaultAsync(a =>
+                    a.UserName == dto.UserNameOrEmail ||
+                    a.Company.Email == dto.UserNameOrEmail ||
+                    a.Customers.Any(c => c.Email == dto.UserNameOrEmail));
+
+            if (account == null)
+                return "Không tìm thấy tài khoản với thông tin này.";
+
+            // Tạo token ngẫu nhiên
+            var tokenBytes = RandomNumberGenerator.GetBytes(32);
+            var resetToken = Convert.ToBase64String(tokenBytes);
+
+            // Lưu tạm vào cột AvatarUrl hoặc tạo bảng ResetPasswordToken riêng nếu muốn
+            // Ở đây ta demo tạm bằng UpdatedAt để lưu token
+            account.AvatarUrl = resetToken;
+            account.UpdatedAt = DateTime.Now;
+            await _accountRepository.UpdateAsync(account);
+
+            // Gửi mail ở đây (hoặc trả về cho FE để test)
+            return $"Token đặt lại mật khẩu của bạn: {resetToken}";
+        }
+        public async Task<string> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            var account = await _context.Accounts
+                .FirstOrDefaultAsync(a => a.AvatarUrl == dto.ResetToken); // tạm dùng AvatarUrl lưu token
+
+            if (account == null)
+                return "Token không hợp lệ hoặc đã hết hạn.";
+
+            account.PassWord = _passwordHasher.HashPassword(account, dto.NewPassword);
+            account.UpdatedAt = DateTime.Now;
+            account.AvatarUrl = null; // xoá token sau khi reset thành công
+
+            await _accountRepository.UpdateAsync(account);
+            return "Đặt lại mật khẩu thành công.";
+        }
+
     }
 }
