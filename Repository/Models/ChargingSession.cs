@@ -38,5 +38,7 @@ public partial class ChargingSession
     public virtual Port Port { get; set; }
     public virtual Vehicle Vehicle { get; set; }
     public virtual PricingRule PricingRule { get; set; }
+    public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
+
 
 }

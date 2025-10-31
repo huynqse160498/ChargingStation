@@ -10,6 +10,8 @@ namespace Services.Interfaces
 
         // 🔹 Kết thúc phiên sạc
         Task<ChargingSession> EndSessionAsync(ChargingSessionEndDto dto);
+        Task<ChargingSession> StartGuestSessionAsync(GuestChargingStartDto dto);
+        Task<ChargingSession> EndGuestSessionAsync(GuestChargingEndDto dto);
 
         // 🔹 CRUD cơ bản
         Task<List<ChargingSession>> GetAllAsync();

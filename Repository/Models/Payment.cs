@@ -13,6 +13,7 @@ public partial class Payment
     public int? SubscriptionId { get; set; }   // ✅ Thêm dòng này
     public int? CompanyId { get; set; }        // ✅ Công ty thanh toán
     public int CustomerId { get; set; }
+    public int? ChargingSessionId { get; set; }
 
     public string Method { get; set; }
     public decimal? Amount { get; set; }
@@ -27,5 +28,7 @@ public partial class Payment
     public virtual Invoice Invoice { get; set; }
     public virtual Booking Booking { get; set; }
     public virtual Subscription Subscription { get; set; }  // ✅ Thêm dòng này
+    public virtual ChargingSession? ChargingSession { get; set; }
+
 
 }

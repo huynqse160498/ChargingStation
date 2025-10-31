@@ -70,5 +70,10 @@ namespace Repositories.Implementations
             _context.ChargingSessions.Remove(session);
             await _context.SaveChangesAsync();
         }
+        public IQueryable<ChargingSession> Query()
+        {
+            return _context.ChargingSessions.AsQueryable();
+        }
+
     }
 }

@@ -21,6 +21,7 @@ namespace Services.Implementations
         private readonly ISubscriptionRepository _subscriptionRepo;
         private readonly ISubscriptionPlanRepository _planRepo;
         private readonly ILogger<VnPayService> _logger;
+        private readonly IChargingSessionRepository _chargingSessionRepo;
 
         public VnPayService(
             IConfiguration config,
@@ -28,6 +29,7 @@ namespace Services.Implementations
             IInvoiceRepository invoiceRepo,
             ISubscriptionRepository subscriptionRepo,
             ISubscriptionPlanRepository planRepo,
+            IChargingSessionRepository chargingSessionRepo,
             ILogger<VnPayService> logger)
         {
             _config = config;
@@ -35,6 +37,7 @@ namespace Services.Implementations
             _invoiceRepo = invoiceRepo;
             _subscriptionRepo = subscriptionRepo;
             _planRepo = planRepo;
+            _chargingSessionRepo = chargingSessionRepo; // ✅ gán vào đây
             _logger = logger;
         }
 
@@ -80,10 +83,24 @@ namespace Services.Implementations
                 amount = plan.PriceMonthly;
                 orderInfo = $"Thanh toán subscription #{dto.SubscriptionId}";
             }
+            // 🔹 Guest Charging Session
+            else if (dto.ChargingSessionId.HasValue)
+            {
+                var session = await _chargingSessionRepo.GetByIdAsync(dto.ChargingSessionId.Value)
+                    ?? throw new Exception($"Không tìm thấy phiên sạc #{dto.ChargingSessionId}");
+
+                if (session.Total == null || session.Total <= 0)
+                    throw new Exception("Phiên sạc chưa có tổng tiền để thanh toán.");
+
+                amount = session.Total.Value;
+                orderInfo = $"Thanh toán phiên sạc #{session.ChargingSessionId}";
+            }
+
             else
             {
-                throw new Exception("Thiếu BookingId, InvoiceId hoặc SubscriptionId khi tạo thanh toán.");
+                throw new Exception("Thiếu BookingId, InvoiceId, SubscriptionId hoặc ChargingSessionId khi tạo thanh toán.");
             }
+
 
             // ==========================
             // 🔐 Tạo URL VNPay

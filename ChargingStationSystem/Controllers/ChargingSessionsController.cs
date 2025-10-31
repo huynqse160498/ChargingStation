@@ -233,5 +233,19 @@ namespace ChargingStationSystem.Controllers
                 return BadRequest(new { error = ex.InnerException?.Message ?? ex.Message });
             }
         }
+        [HttpPost("guest/start")]
+        public async Task<IActionResult> StartGuest([FromBody] GuestChargingStartDto dto)
+        {
+            var session = await _service.StartGuestSessionAsync(dto);
+            return Ok(new { message = "✅ Bắt đầu phiên sạc vãng lai thành công", data = session });
+        }
+
+        [HttpPost("guest/end")]
+        public async Task<IActionResult> EndGuest([FromBody] GuestChargingEndDto dto)
+        {
+            var session = await _service.EndGuestSessionAsync(dto);
+            return Ok(new { message = "✅ Kết thúc phiên sạc vãng lai thành công", data = session });
+        }
+
     }
 }

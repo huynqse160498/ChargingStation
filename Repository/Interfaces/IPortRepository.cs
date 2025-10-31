@@ -34,6 +34,7 @@ namespace Repositories.Interfaces
         // NEW: đổi trạng thái nhanh (Available / Reserved / Occupied / Disabled)
         Task<bool> UpdateStatusAsync(int id, string status);
 
+        IQueryable<Port> Query();
 
         // Lưu thay đổi
         Task SaveChangesAsync();

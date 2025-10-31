@@ -9,7 +9,9 @@ namespace Repositories.DTOs
         public int? InvoiceId { get; set; } // 🔗 Hóa đơn tháng
         public int? CompanyId { get; set; }  // nếu công ty thanh toán
         public int? SubscriptionId { get; set; } // ✅ đúng chính tả
+        public int? ChargingSessionId { get; set; } // nếu thanh toán trạm sạc trực tiếp
         public string? Description { get; set; }
+
     }
 
 

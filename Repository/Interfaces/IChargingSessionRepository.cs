@@ -9,5 +9,7 @@ namespace Repositories.Interfaces
         Task AddAsync(ChargingSession session);
         Task UpdateAsync(ChargingSession session);
         Task DeleteAsync(ChargingSession session);
+        IQueryable<ChargingSession> Query();
+
     }
 }

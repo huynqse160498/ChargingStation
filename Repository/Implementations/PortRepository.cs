@@ -109,6 +109,11 @@ namespace Repositories.Implementations
 
             return await q.CountAsync();
         }
+        public IQueryable<Port> Query()
+        {
+            return _context.Ports.AsQueryable();
+        }
+
         public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
     }
 }

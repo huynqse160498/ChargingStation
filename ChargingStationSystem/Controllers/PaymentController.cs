@@ -169,6 +169,13 @@ namespace WebAPI.Controllers
 
             return Ok(new { success = true, message = msg, type });
         }
-   
+        [HttpPost("create-for-guest-session")]
+        public async Task<IActionResult> CreateGuestSessionPayment([FromQuery] int sessionId)
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+            var url = await _paymentService.CreateGuestSessionPaymentUrl(sessionId, ip);
+            return Ok(new { message = "Tạo link thanh toán thành công", paymentUrl = url });
+        }
+
     }
 }

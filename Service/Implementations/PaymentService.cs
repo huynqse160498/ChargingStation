@@ -18,7 +18,7 @@ namespace Services.Implementations
         private readonly ISubscriptionRepository _subscriptionRepo;
         private readonly ISubscriptionPlanRepository _planRepo;
         private readonly INotificationRepository _notiRepo;
-
+        private readonly IChargingSessionRepository _chargingSessionRepo;
         public PaymentService(
             IVnPayService vnPay,
             IPaymentRepository paymentRepo,
@@ -26,7 +26,8 @@ namespace Services.Implementations
             IInvoiceRepository invoiceRepo,
             ISubscriptionRepository subscriptionRepo,
             ISubscriptionPlanRepository planRepo,
-            INotificationRepository notiRepo)
+            INotificationRepository notiRepo,
+            IChargingSessionRepository chargingSessionRepo)
         {
             _vnPay = vnPay;
             _paymentRepo = paymentRepo;
@@ -35,6 +36,7 @@ namespace Services.Implementations
             _subscriptionRepo = subscriptionRepo;
             _planRepo = planRepo;
             _notiRepo = notiRepo;
+            _chargingSessionRepo = chargingSessionRepo;
         }
 
         // ===========================================================
@@ -411,5 +413,51 @@ namespace Services.Implementations
 
             return $"✅ Thanh toán combo thành công!\n{invoiceMsg}\n{subMsg}";
         }
+        // ===========================================================
+        // 🔹 Thanh toán phiên sạc vãng lai (Guest Session)
+        // ===========================================================
+        public async Task<string> CreateGuestSessionPaymentUrl(int sessionId, string ipAddress)
+        {
+            var session = await _chargingSessionRepo.GetByIdAsync(sessionId)
+                ?? throw new Exception($"Không tìm thấy phiên sạc #{sessionId}.");
+
+            if (session.Total == null || session.Total <= 0)
+                throw new Exception("Phiên sạc chưa có tổng tiền để thanh toán.");
+
+            string txnRef = Guid.NewGuid().ToString("N").Substring(0, 10);
+            string orderInfo = $"Thanh toán phiên sạc #{session.ChargingSessionId}";
+
+            var dto = new PaymentCreateDto
+            {
+                ChargingSessionId = session.ChargingSessionId,
+                Description = orderInfo
+            };
+
+
+            // ✅ Tạo URL VNPay
+            return await _vnPay.CreatePaymentUrl(dto, ipAddress, txnRef);
+        }
+        public async Task<string> HandleGuestSessionPaymentAsync(int sessionId)
+        {
+            var session = await _chargingSessionRepo.GetByIdAsync(sessionId)
+                ?? throw new Exception($"Không tìm thấy phiên sạc #{sessionId}.");
+
+            var payment = new Payment
+            {
+                ChargingSessionId = session.ChargingSessionId,
+                Amount = session.Total,
+                Method = "VNPAY",
+                Status = "Success",
+                PaidAt = DateTime.Now,
+                CreatedAt = DateTime.Now
+            };
+
+            await _paymentRepo.AddAsync(payment);
+            session.Status = "Paid";
+            await _chargingSessionRepo.UpdateAsync(session);
+
+            return $"✅ Thanh toán thành công phiên sạc #{session.ChargingSessionId}.";
+        }
+
     }
 }
