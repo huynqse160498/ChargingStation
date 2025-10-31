@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Google.Apis.Auth;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -320,6 +321,80 @@ namespace Services.Implementations
             await _accountRepository.UpdateAsync(account);
             return "Đặt lại mật khẩu thành công.";
         }
+        public async Task<object> GoogleLoginAsync(GoogleLoginDto dto)
+        {
+            GoogleJsonWebSignature.Payload payload;
 
+            try
+            {
+                // ✅ Xác minh token Google
+                payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken);
+            }
+            catch
+            {
+                return new { Success = false, Message = "Token Google không hợp lệ hoặc đã hết hạn." };
+            }
+
+            // ✅ Kiểm tra tài khoản đã tồn tại chưa (dựa vào email)
+            var account = await _context.Accounts
+                .Include(a => a.Customers)
+                .Include(a => a.Company)
+                .FirstOrDefaultAsync(a => a.UserName == payload.Email);
+
+            if (account == null)
+            {
+                // ✅ Nếu chưa có, tạo mới account và customer mặc định
+                account = new Account
+                {
+                    UserName = payload.Email,
+                    Role = "Customer",
+                    Status = "Active",
+                    CreatedAt = DateTime.Now,
+                    AvatarUrl = payload.Picture
+                };
+                await _context.Accounts.AddAsync(account);
+                await _context.SaveChangesAsync();
+
+                var customer = new Customer
+                {
+                    AccountId = account.AccountId,
+                    FullName = payload.Name,
+                    Email = payload.Email,
+                    Status = "Active",
+                    CreatedAt = DateTime.Now
+                };
+                await _context.Customers.AddAsync(customer);
+                await _context.SaveChangesAsync();
+            }
+
+            // ✅ Sinh JWT token nội bộ của hệ thống
+            var claims = new[]
+            {
+        new Claim(ClaimTypes.NameIdentifier, account.AccountId.ToString()),
+        new Claim(ClaimTypes.Name, account.UserName),
+        new Claim(ClaimTypes.Role, account.Role)
+    };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.Now.AddHours(3),
+                signingCredentials: creds
+            );
+
+            return new
+            {
+                Success = true,
+                Message = "Đăng nhập Google thành công",
+                Token = new JwtSecurityTokenHandler().WriteToken(token),
+                Email = payload.Email,
+                Name = payload.Name,
+                Picture = payload.Picture
+            };
+        }
     }
 }

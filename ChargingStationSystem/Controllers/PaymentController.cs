@@ -46,6 +46,15 @@ namespace WebAPI.Controllers
                         "Unknown"
             });
         }
+        [HttpPost("create-combo-url")]
+        public async Task<IActionResult> CreateComboUrl([FromBody] ComboPaymentRequest req)
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+            var url = await _paymentService.CreateComboPaymentUrl(req.InvoiceId, req.SubscriptionId, ip);
+            return Ok(new { paymentUrl = url });
+        }
+
+     
 
         // =====================================================
         // 🔹 2️⃣ Tạo URL thanh toán cho Subscription (manual renew)
@@ -160,5 +169,6 @@ namespace WebAPI.Controllers
 
             return Ok(new { success = true, message = msg, type });
         }
+   
     }
 }

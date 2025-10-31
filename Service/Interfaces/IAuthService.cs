@@ -22,6 +22,7 @@ namespace Services.Interfaces
         Task<string> ChangePasswordAsync(ChangePasswordDto dto);
         Task<string> ForgotPasswordAsync(ForgotPasswordDto dto);
         Task<string> ResetPasswordAsync(ResetPasswordDto dto);
+        Task<object> GoogleLoginAsync(GoogleLoginDto dto);
 
     }
 }

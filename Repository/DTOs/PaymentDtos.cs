@@ -8,9 +8,10 @@ namespace Repositories.DTOs
         public int? BookingId { get; set; }
         public int? InvoiceId { get; set; } // 🔗 Hóa đơn tháng
         public int? CompanyId { get; set; }  // nếu công ty thanh toán
-        public int? SubscriptionId { get; set; } // ✅ đúng chính tả, trùng với model
+        public int? SubscriptionId { get; set; } // ✅ đúng chính tả
         public string? Description { get; set; }
     }
+
 
     public class PaymentListItemDto
     {
@@ -36,5 +37,10 @@ namespace Repositories.DTOs
         public decimal? Amount { get; set; }
         public string? Method { get; set; }
         public string? Status { get; set; }
+    }
+    public class ComboPaymentRequest
+    {
+        public int InvoiceId { get; set; }
+        public int SubscriptionId { get; set; }
     }
 }

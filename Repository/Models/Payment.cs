@@ -20,6 +20,7 @@ public partial class Payment
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public string Status { get; set; }
+    public string? Description { get; set; }  // Mô tả giao dịch (vd: combo Invoice + Subscription)
 
     public virtual Customer Customer { get; set; }
     public virtual Company? Company { get; set; }

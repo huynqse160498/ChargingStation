@@ -1,4 +1,5 @@
 ﻿using Repositories.Models;
+using System.Linq.Expressions;
 
 namespace Repositories.Interfaces
 {
@@ -15,6 +16,7 @@ namespace Repositories.Interfaces
 
         Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int? customerId,int? companyId, int month, int year);
         Task RecalculateInvoiceAsync(int invoiceId);
+        Task<List<Invoice>> GetAllAsync(Expression<Func<Invoice, bool>> filter);
 
         Task SaveAsync();
     }

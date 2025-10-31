@@ -154,6 +154,13 @@ namespace ChargingStationSystem.Controllers
             var message = await _authService.ResetPasswordAsync(dto);
             return Ok(new { message });
         }
+        [HttpPost("login-google")]
+        [AllowAnonymous]
+        public async Task<IActionResult> LoginGoogle([FromBody] GoogleLoginDto dto)
+        {
+            var result = await _authService.GoogleLoginAsync(dto);
+            return Ok(result);
+        }
 
     }
 }

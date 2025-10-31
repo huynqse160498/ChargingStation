@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Repositories.Interfaces;
 using Repositories.Models;
+using System.Linq.Expressions;
 
 namespace Repositories.Implementations
 {
@@ -183,6 +184,10 @@ namespace Repositories.Implementations
 
             _context.Invoices.Update(invoice);
             await _context.SaveChangesAsync();
+        }
+        public async Task<List<Invoice>> GetAllAsync(Expression<Func<Invoice, bool>> filter)
+        {
+            return await _context.Invoices.Where(filter).ToListAsync();
         }
 
         public async Task SaveAsync() => await _context.SaveChangesAsync();
