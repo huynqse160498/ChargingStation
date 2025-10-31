@@ -251,7 +251,7 @@ namespace Services.Implementations
                             Message = $"Gói {plan.PlanName} của bạn đã được kích hoạt và có hiệu lực đến {sub.EndDate:dd/MM/yyyy}.",
                             Type = "Subscription",
                             Priority = "High",
-                            ActionUrl = $"/subscriptions/{sub.SubscriptionId}"
+                            ActionUrl = $"/manageSubcription"
                         });
                     }
                 }
@@ -367,7 +367,7 @@ namespace Services.Implementations
                 Message = $"Gói {plan.PlanName} của bạn đã được kích hoạt / gia hạn đến {sub.EndDate:dd/MM/yyyy}.",
                 Type = "Subscription",
                 Priority = "High",
-                ActionUrl = $"/subscriptions/{sub.SubscriptionId}"
+                ActionUrl = $"/manageSubcription"
             });
 
             return $"✅ Thanh toán thành công Subscription #{sub.SubscriptionId}.";

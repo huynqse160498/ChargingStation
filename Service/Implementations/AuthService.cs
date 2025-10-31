@@ -350,7 +350,9 @@ namespace Services.Implementations
                     Role = "Customer",
                     Status = "Active",
                     CreatedAt = DateTime.Now,
-                    AvatarUrl = payload.Picture
+                    AvatarUrl = payload.Picture,
+                    PassWord = _passwordHasher.HashPassword(null, Guid.NewGuid().ToString()) // 👈 thêm dòng này
+
                 };
                 await _context.Accounts.AddAsync(account);
                 await _context.SaveChangesAsync();
@@ -394,6 +396,7 @@ namespace Services.Implementations
                 Email = payload.Email,
                 Name = payload.Name,
                 Picture = payload.Picture
+
             };
         }
     }
