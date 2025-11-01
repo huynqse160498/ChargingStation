@@ -65,6 +65,11 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IFeedbackRepository, FeedbackRepository>();
             builder.Services.AddScoped<IFeedbackService, FeedbackService>();
 
+            builder.Services.AddScoped<IReportRepository, ReportRepository>();
+            builder.Services.AddScoped<IReportService, ReportService>();
+
+
+
             builder.Services.AddScoped<IS3Service, S3Service>();
 
             builder.Services.AddScoped<IBookingRepository, BookingRepository>();
