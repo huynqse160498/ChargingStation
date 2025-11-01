@@ -15,6 +15,8 @@
     {
         public int ChargingSessionId { get; set; }
         public int? EndSoc { get; set; }
+        public int? IdleMin { get; set; } // 👈 thêm dòng này
+
     }
 
     // ✅ DTO trả về thông tin chi tiết

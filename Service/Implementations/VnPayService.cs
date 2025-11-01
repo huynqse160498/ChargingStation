@@ -42,13 +42,30 @@ namespace Services.Implementations
         }
 
         // 🧾 Tạo URL thanh toán VNPay (Booking / Invoice / Subscription)
+        // 🧾 Tạo URL thanh toán VNPay (Booking / Invoice / Subscription / Combo)
         public async Task<string> CreatePaymentUrl(PaymentCreateDto dto, string ipAddress, string txnRef)
         {
             decimal amount = 0;
             string orderInfo;
 
-            // 🔹 Booking
-            if (dto.BookingId.HasValue)
+            // 🔹 1️⃣ Combo Invoice + Subscription (tự động tính tổng)
+            if (dto.InvoiceId.HasValue && dto.SubscriptionId.HasValue)
+            {
+                var invoice = await _invoiceRepo.GetByIdAsync(dto.InvoiceId.Value)
+                    ?? throw new Exception($"Không tìm thấy Hóa đơn #{dto.InvoiceId}");
+
+                var sub = await _subscriptionRepo.GetByIdAsync(dto.SubscriptionId.Value)
+                    ?? throw new Exception($"Không tìm thấy Subscription #{dto.SubscriptionId}");
+
+                var plan = await _planRepo.GetByIdAsync(sub.SubscriptionPlanId)
+                    ?? throw new Exception("Không tìm thấy gói Subscription.");
+
+                amount = (invoice.Total ?? 0) + plan.PriceMonthly;
+                orderInfo = $"Thanh toán combo Invoice#{invoice.InvoiceId}_Sub#{sub.SubscriptionId}";
+            }
+
+            // 🔹 2️⃣ Thanh toán Booking
+            else if (dto.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(dto.BookingId.Value)
                     ?? throw new Exception($"Không tìm thấy Booking #{dto.BookingId}");
@@ -59,7 +76,8 @@ namespace Services.Implementations
                 amount = booking.Price.Value;
                 orderInfo = $"Thanh toán booking #{booking.BookingId}";
             }
-            // 🔹 Invoice
+
+            // 🔹 3️⃣ Thanh toán Invoice riêng
             else if (dto.InvoiceId.HasValue)
             {
                 var invoice = await _invoiceRepo.GetByIdAsync(dto.InvoiceId.Value)
@@ -71,7 +89,8 @@ namespace Services.Implementations
                 amount = invoice.Total.Value;
                 orderInfo = $"Thanh toán hóa đơn #{invoice.InvoiceId}";
             }
-            // 🔹 Subscription (manual renew)
+
+            // 🔹 4️⃣ Thanh toán Subscription riêng
             else if (dto.SubscriptionId.HasValue)
             {
                 var sub = await _subscriptionRepo.GetByIdAsync(dto.SubscriptionId.Value)
@@ -83,7 +102,8 @@ namespace Services.Implementations
                 amount = plan.PriceMonthly;
                 orderInfo = $"Thanh toán subscription #{dto.SubscriptionId}";
             }
-            // 🔹 Guest Charging Session
+
+            // 🔹 5️⃣ Thanh toán phiên sạc khách vãng lai
             else if (dto.ChargingSessionId.HasValue)
             {
                 var session = await _chargingSessionRepo.GetByIdAsync(dto.ChargingSessionId.Value)
@@ -96,12 +116,13 @@ namespace Services.Implementations
                 orderInfo = $"Thanh toán phiên sạc #{session.ChargingSessionId}";
             }
 
+            // 🔹 6️⃣ Không hợp lệ
             else
             {
                 throw new Exception("Thiếu BookingId, InvoiceId, SubscriptionId hoặc ChargingSessionId khi tạo thanh toán.");
             }
 
-
+       
             // ==========================
             // 🔐 Tạo URL VNPay
             // ==========================
@@ -140,6 +161,7 @@ namespace Services.Implementations
 
             return finalUrl;
         }
+
 
         // ✅ Xác thực callback
         public bool ValidateResponse(IQueryCollection vnpParams, out string txnRef)

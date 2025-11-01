@@ -179,7 +179,7 @@ namespace Services.Implementations
             session.EndedAt = DateTime.Now;
             session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
             session.DurationMin = (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
-            session.IdleMin = new Random().Next(0, 10);
+            session.IdleMin = dto.IdleMin ?? 0; // nếu không truyền thì = 0
 
             var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
