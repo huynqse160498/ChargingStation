@@ -50,5 +50,21 @@ namespace ChargingStationSystem.Controllers
             try { await _svc.DeleteAsync(id); return NoContent(); }
             catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         }
+
+        [HttpPut("{id:int}/status")]
+        public async Task<IActionResult> UpdateStatus(
+    int id,
+    [FromQuery] string status) // <= không dùng DTO
+        {
+            try
+            {
+                var result = await _svc.UpdateStatusAsync(id, status);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
     }
 }
