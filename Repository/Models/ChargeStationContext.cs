@@ -324,6 +324,18 @@ namespace Repositories.Models
                     .HasForeignKey(e => e.SubscriptionId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
+            modelBuilder.Entity<StationStaff>()
+    .HasKey(ss => new { ss.StationId, ss.StaffId });
+
+            modelBuilder.Entity<StationStaff>()
+                .HasOne(ss => ss.Station)
+                .WithMany(s => s.StationStaffs)
+                .HasForeignKey(ss => ss.StationId);
+
+            modelBuilder.Entity<StationStaff>()
+                .HasOne(ss => ss.Staff)
+                .WithMany(a => a.StationStaffs)
+                .HasForeignKey(ss => ss.StaffId);
 
             modelBuilder.Entity<Payment>()
     .Property(p => p.Amount)

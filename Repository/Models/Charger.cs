@@ -28,6 +28,7 @@ public partial class Charger
     public string ImageUrl { get; set; }
 
     public virtual ICollection<Port> Ports { get; set; } = new List<Port>();
+    public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
 
     public virtual Station Station { get; set; }
 }

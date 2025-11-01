@@ -26,8 +26,10 @@ public partial class Station
     public string Status { get; set; }
 
     public string ImageUrl { get; set; }
-
+    public virtual ICollection<Feedback> Feedbacks { get; set; } = new List<Feedback>();
+    public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
     public virtual ICollection<Charger> Chargers { get; set; } = new List<Charger>();
+    public virtual ICollection<StationStaff> StationStaffs { get; set; } = new List<StationStaff>();
     //public virtual ICollection<PricingRule> PricingRules { get; set; } = new HashSet<PricingRule>();
 
 }

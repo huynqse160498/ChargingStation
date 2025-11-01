@@ -30,4 +30,6 @@ public partial class Port
     public virtual Charger Charger { get; set; }
 
     public virtual ICollection<ChargingSession> ChargingSessions { get; set; } = new List<ChargingSession>();
+    public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
+
 }

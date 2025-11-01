@@ -26,4 +26,6 @@ public partial class Account
     public string AvatarUrl { get; set; }
     public virtual Company Company { get; set; }
     public virtual ICollection<Customer> Customers { get; set; } = new List<Customer>();
+    public virtual ICollection<Report> Reports { get; set; } = new List<Report>();
+    public virtual ICollection<StationStaff> StationStaffs { get; set; } = new List<StationStaff>();
 }
