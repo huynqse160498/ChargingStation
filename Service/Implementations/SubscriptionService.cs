@@ -166,5 +166,18 @@ namespace Services.Implementations
             NextBillingDate = s.NextBillingDate,
             Status = s.Status
         };
+
+        public async Task<SubscriptionReadDto> UpdateStatusAsync(int id, string status)
+        {
+            var sub = await _repo.GetByIdAsync(id)
+                      ?? throw new KeyNotFoundException("Không tìm thấy gói dịch vụ.");
+
+            // TODO: validate transition nếu cần (ví dụ không cho quay lại từ CANCELED)
+            sub.Status = status;
+            sub.UpdatedAt = DateTime.Now;
+
+            await _repo.UpdateAsync(sub);
+            return MapToRead(sub);
+        }
     }
 }

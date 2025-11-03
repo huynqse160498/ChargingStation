@@ -13,6 +13,7 @@ namespace Services.Interfaces
         Task<SubscriptionReadDto> GetByIdAsync(int id);                       
         Task<SubscriptionReadDto> CreateAsync(SubscriptionCreateDto dto);     
         Task<SubscriptionReadDto> UpdateAsync(int id, SubscriptionUpdateDto dto);
+        Task<SubscriptionReadDto> UpdateStatusAsync(int id, string status);
         Task DeleteAsync(int id);
     }
 }
