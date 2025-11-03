@@ -25,6 +25,7 @@ namespace Repositories.Models
         public string Status { get; set; } = "Unpaid"; // Unpaid, Paid, Overdue
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        public DateTime? DueDate { get; set; } // hạn thanh toán
 
         // 🔗 Navigation
         public virtual Company Company { get; set; }

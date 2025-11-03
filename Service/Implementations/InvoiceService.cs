@@ -47,7 +47,9 @@ namespace Services.Implementations
                 Total = dto.Total ?? (dto.Subtotal * 1.1M),
                 Status = "Unpaid",
                 CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now
+                UpdatedAt = DateTime.Now,
+                DueDate = DateTime.Now.AddMonths(1)
+
             };
 
 

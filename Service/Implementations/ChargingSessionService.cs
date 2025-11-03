@@ -115,9 +115,12 @@ namespace Services.Implementations
             var vehicle = await _vehicleRepo.GetByIdAsync(vehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
-            string timeRange = GetCurrentTimeRange();
+            // ✅ Kiểm tra connector type tương thích
+            if (!string.Equals(vehicle.ConnectorType, portEntity.ConnectorType, StringComparison.OrdinalIgnoreCase))
+                throw new Exception($"Xe ({vehicle.ConnectorType}) không tương thích với cổng sạc ({portEntity.ConnectorType}).");
 
             // 4️⃣ Tìm PricingRule phù hợp
+            string timeRange = GetCurrentTimeRange();
             var rule = await _pricingRepo.GetAll()
                 .Where(x =>
                     x.ChargerType == charger.Type &&
@@ -163,15 +166,13 @@ namespace Services.Implementations
 
             var rule = await _pricingRepo.GetByIdAsync(session.PricingRuleId)
                 ?? throw new Exception("Không tìm thấy PricingRule.");
-
             var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
-                ?? throw new Exception("Không tìm thấy xe cho phiên sạc này.");
-
+                ?? throw new Exception("Không tìm thấy xe.");
             if (vehicle.BatteryCapacity is null or <= 0)
                 throw new Exception("Dung lượng pin của xe không hợp lệ.");
 
             int startSoc = session.StartSoc ?? 50;
-            int endSoc = dto.EndSoc ?? new Random().Next(startSoc + 10, 101);
+            int endSoc = dto.EndSoc ?? _rand.Next(startSoc + 10, 101);
             if (endSoc <= startSoc)
                 throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
 
@@ -179,21 +180,16 @@ namespace Services.Implementations
             session.EndedAt = DateTime.Now;
             session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
             session.DurationMin = (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
-            session.IdleMin = dto.IdleMin ?? 0; // nếu không truyền thì = 0
+            session.IdleMin = dto.IdleMin ?? 0;
 
             var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
-            decimal pricePerKwh = rule.PricePerKwh;
-            decimal idleFeePerMin = rule.IdleFeePerMin;
+            decimal subtotal = (session.EnergyKwh ?? 0M) * rule.PricePerKwh;
             int freeIdle = activeSub?.SubscriptionPlan?.FreeIdleMinutes ?? 0;
+            int chargeableIdle = Math.Max(session.IdleMin.Value - freeIdle, 0);
+            subtotal += chargeableIdle * rule.IdleFeePerMin;
+
             decimal discountPercent = activeSub?.SubscriptionPlan?.DiscountPercent ?? 0;
-
-            int actualIdle = session.IdleMin ?? 0;
-            int chargeableIdle = Math.Max(actualIdle - freeIdle, 0);
-
-            decimal subtotalBeforeDiscount = (session.EnergyKwh ?? 0M) * pricePerKwh + chargeableIdle * idleFeePerMin;
-            decimal subtotal = subtotalBeforeDiscount;
-
             if (discountPercent > 0)
                 subtotal -= subtotal * (discountPercent / 100M);
 
@@ -222,41 +218,6 @@ namespace Services.Implementations
                 }
             }
 
-            var now = DateTime.Now;
-            var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(session.CustomerId, session.CompanyId, now.Month, now.Year);
-
-            if (invoice.Status == "Paid")
-            {
-                invoice = new Invoice
-                {
-                    CustomerId = session.CustomerId,
-                    CompanyId = session.CompanyId,
-                    BillingMonth = now.Month,
-                    BillingYear = now.Year,
-                    Status = "Unpaid",
-                    IsMonthlyInvoice = true,
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now
-                };
-                await _invoiceRepo.AddAsync(invoice);
-            }
-
-            if (activeSub != null)
-            {
-                invoice.SubscriptionId = activeSub.SubscriptionId;
-                await _invoiceRepo.UpdateAsync(invoice);
-            }
-
-            invoice.ChargingSessions ??= new List<ChargingSession>();
-            invoice.ChargingSessions.Add(session);
-            invoice.Total = (invoice.Total ?? 0M) + session.Total;
-            invoice.UpdatedAt = DateTime.Now;
-
-            await _invoiceRepo.SaveAsync();
-
-            session.InvoiceId = invoice.InvoiceId;
-            await _sessionRepo.UpdateAsync(session);
-
             return session;
         }
 
@@ -277,26 +238,38 @@ namespace Services.Implementations
             var charger = port.Charger
                 ?? throw new Exception("Không tìm thấy thông tin bộ sạc (Charger) của trụ này.");
 
-            // ⚡ 2️⃣ Xác định loại xe dựa vào ConnectorType và MaxPowerKw
+            // 2️⃣ Xử lý ConnectorType — fallback linh hoạt
+            var connector = string.IsNullOrEmpty(dto.ConnectorType)
+                ? port.ConnectorType                          // ✅ tự lấy connector của trụ sạc
+                : dto.ConnectorType;
+
+            // 3️⃣ Kiểm tra tương thích (nếu người dùng có nhập)
+            if (!string.IsNullOrEmpty(dto.ConnectorType) &&
+                !string.Equals(dto.ConnectorType, port.ConnectorType, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new Exception($"Đầu nối '{dto.ConnectorType}' không tương thích với trụ '{port.ConnectorType}'.");
+            }
+
+            // 4️⃣ Xác định loại xe & dung lượng pin dựa vào connector
             var (vehicleType, batteryCapacity) = DetermineVehicleType(
                 dto.VehicleType,
-                port.ConnectorType,
+                connector,
                 port.MaxPowerKw ?? charger.PowerKw ?? 0M
             );
 
-            // 🚗 3️⃣ Tạo bản ghi Vehicle tạm cho khách vãng lai
+            // 5️⃣ Tạo bản ghi Vehicle tạm cho khách vãng lai
             var vehicle = new Vehicle
             {
                 LicensePlate = dto.LicensePlate,
                 VehicleType = vehicleType,
                 BatteryCapacity = batteryCapacity,
-                ConnectorType = port.ConnectorType,
+                ConnectorType = connector,   // ✅ sử dụng connector đã xác định
                 ManufactureYear = DateTime.Now.Year,
                 CreatedAt = DateTime.Now
             };
             await _vehicleRepo.AddAsync(vehicle);
 
-            // 🧾 4️⃣ Tìm PricingRule phù hợp
+            // 6️⃣ Tìm PricingRule phù hợp
             string timeRange = GetCurrentTimeRange();
             var rule = await _pricingRepo.GetAll()
                 .Where(r =>
@@ -307,10 +280,10 @@ namespace Services.Implementations
                 .FirstOrDefaultAsync()
                 ?? throw new Exception($"Không tìm thấy PricingRule phù hợp cho {charger.Type} - {charger.PowerKw}kW ({timeRange}).");
 
-            // 🔋 5️⃣ Random SOC ban đầu
+            // 7️⃣ Random SOC ban đầu
             int startSoc = _rand.Next(20, 60);
 
-            // 🕐 6️⃣ Tạo ChargingSession
+            // 8️⃣ Tạo phiên sạc
             var session = new ChargingSession
             {
                 VehicleId = vehicle.VehicleId,
@@ -322,17 +295,16 @@ namespace Services.Implementations
                 Status = "Charging"
             };
 
-            // ⚙️ 7️⃣ Cập nhật trạng thái trụ
+            // 9️⃣ Cập nhật trạng thái trụ sạc
             port.Status = "InUse";
             port.UpdatedAt = DateTime.Now;
             await _portRepo.UpdateAsync(port);
 
-            // 💾 8️⃣ Lưu phiên sạc
+            // 🔟 Lưu phiên sạc
             await _sessionRepo.AddAsync(session);
 
             return session;
         }
-
 
 
         // ============================================================
@@ -340,7 +312,6 @@ namespace Services.Implementations
         // ============================================================
         public async Task<ChargingSession> EndGuestSessionAsync(GuestChargingEndDto dto)
         {
-            // 1️⃣ Lấy thông tin phiên sạc đầy đủ
             var session = await _sessionRepo.Query()
                 .Include(s => s.PricingRule)
                 .Include(s => s.Port)
@@ -350,31 +321,25 @@ namespace Services.Implementations
                 ?? throw new Exception("Không tìm thấy phiên sạc.");
 
             if (session.Status == "Completed")
-                throw new Exception("Phiên sạc này đã kết thúc trước đó.");
+                throw new Exception("Phiên sạc này đã kết thúc.");
 
-            var rule = session.PricingRule
-                ?? throw new Exception("Không tìm thấy PricingRule cho phiên sạc.");
-            var vehicle = session.Vehicle
-                ?? throw new Exception("Không tìm thấy thông tin xe.");
-            var port = session.Port
-                ?? throw new Exception("Không tìm thấy trụ sạc.");
+            var rule = session.PricingRule ?? throw new Exception("Không tìm thấy PricingRule.");
+            var vehicle = session.Vehicle ?? throw new Exception("Không tìm thấy xe.");
+            var port = session.Port ?? throw new Exception("Không tìm thấy trụ sạc.");
 
-            // 2️⃣ Tính toán năng lượng & tiền
+            if (!string.Equals(vehicle.ConnectorType, port.ConnectorType, StringComparison.OrdinalIgnoreCase))
+                throw new Exception($"Xe ({vehicle.ConnectorType}) không tương thích với cổng ({port.ConnectorType}).");
+
             int startSoc = session.StartSoc ?? 40;
             int endSoc = dto.EndSoc;
-
             if (endSoc <= startSoc)
-                throw new Exception("Mức SOC kết thúc phải lớn hơn mức SOC bắt đầu.");
+                throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
 
-            // 🔋 Tính điện năng tiêu thụ (kWh)
             decimal energyKwh = Math.Round(vehicle.BatteryCapacity!.Value * (endSoc - startSoc) / 100M, 2);
-
-            // 💰 Tính tiền
             decimal subtotal = Math.Round(energyKwh * rule.PricePerKwh, 2);
             decimal tax = Math.Round(subtotal * 0.1M, 2);
             decimal total = subtotal + tax;
 
-            // 3️⃣ Cập nhật thông tin phiên sạc
             session.EndSoc = endSoc;
             session.EnergyKwh = energyKwh;
             session.Subtotal = subtotal;
@@ -386,12 +351,10 @@ namespace Services.Implementations
 
             await _sessionRepo.UpdateAsync(session);
 
-            // 4️⃣ Giải phóng trụ sạc
             port.Status = "Available";
             port.UpdatedAt = DateTime.Now;
             await _portRepo.UpdateAsync(port);
 
-            // ✅ 5️⃣ Trả kết quả cho FE
             return session;
         }
 
