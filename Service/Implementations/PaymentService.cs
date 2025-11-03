@@ -348,13 +348,14 @@ namespace Services.Implementations
                 BillingMonth = now.Month,
                 BillingYear = now.Year,
                 Subtotal = amount,
-                Tax = Math.Round(amount * 0.1M, 2),
-                Total = Math.Round(amount * 1.1M, 2),
-                Status = "Paid", // Vì vừa thanh toán
+                Tax = 0,                      // ❌ Không tính VAT cho Subscription
+                Total = amount,               // ✅ Tổng = giá gói
+                Status = "Paid",
                 CreatedAt = now,
                 UpdatedAt = now,
                 IsMonthlyInvoice = false
             };
+
             await _invoiceRepo.AddAsync(newInvoice);
 
             // 🔔 Gửi thông báo
