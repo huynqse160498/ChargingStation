@@ -25,6 +25,6 @@ namespace Repositories.DTOs.Chargers
         public string Status { get; set; } = "Online";
 
         public DateTime? InstalledAt { get; set; }
-        public string? ImageUrl { get; set; }
+        //public string? ImageUrl { get; set; }
     }
 }

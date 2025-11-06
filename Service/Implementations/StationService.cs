@@ -53,7 +53,7 @@ namespace Services.Implementations
                 Latitude = dto.Latitude,
                 Longitude = dto.Longitude,
                 Status = Normalize(dto.Status),
-                ImageUrl = dto.ImageUrl,
+                //ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -75,7 +75,7 @@ namespace Services.Implementations
             entity.Latitude = dto.Latitude;
             entity.Longitude = dto.Longitude;
             entity.Status = string.IsNullOrWhiteSpace(dto.Status) ? entity.Status : Normalize(dto.Status);
-            entity.ImageUrl = dto.ImageUrl;
+            //entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
 
             await _repo.UpdateAsync(entity);

@@ -18,7 +18,7 @@ namespace Repositories.DTOs.Ports
         public decimal? MaxPowerKw { get; set; }
         public string Status { get; set; } = "Available";
 
-        [MaxLength(255)]
-        public string? ImageUrl { get; set; }
+        //[MaxLength(255)]
+        //public string? ImageUrl { get; set; }
     }
 }
