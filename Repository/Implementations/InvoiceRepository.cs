@@ -100,25 +100,23 @@ namespace Repositories.Implementations
         {
             var now = DateTime.UtcNow.AddHours(7);
 
-            // ✅ Tìm invoice đúng tháng/năm
+            // ✅ Find existing unpaid invoice
             var invoice = await _context.Invoices
                 .Include(i => i.Subscription)
                     .ThenInclude(s => s.SubscriptionPlan)
                 .Include(i => i.ChargingSessions)
                 .FirstOrDefaultAsync(i =>
-                    i.CustomerId == customerId &&
-                    i.CompanyId == companyId &&
+                    (
+                        (customerId != null && i.CustomerId == customerId) ||
+                        (companyId != null && i.CompanyId == companyId)
+                    ) &&
                     i.BillingMonth == month &&
                     i.BillingYear == year &&
-                    i.IsMonthlyInvoice);
+                    i.IsMonthlyInvoice &&
+                    i.Status != "Paid"
+                );
 
-            // ✅ Nếu đã tồn tại hóa đơn nhưng đã PAID → tạo hóa đơn mới
-            if (invoice?.Status == "Paid")
-            {
-                invoice = null;
-            }
-
-            // ✅ Không tìm thấy → tạo mới
+            // ✅ Create new if none found
             if (invoice == null)
             {
                 invoice = new Invoice
@@ -135,13 +133,6 @@ namespace Repositories.Implementations
 
                 await _context.Invoices.AddAsync(invoice);
                 await _context.SaveChangesAsync();
-
-                // Load lại để có Subscription + ChargingSessions
-                invoice = await _context.Invoices
-                    .Include(i => i.Subscription)
-                        .ThenInclude(s => s.SubscriptionPlan)
-                    .Include(i => i.ChargingSessions)
-                    .FirstOrDefaultAsync(i => i.InvoiceId == invoice.InvoiceId);
             }
 
             return invoice!;
