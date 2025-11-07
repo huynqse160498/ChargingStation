@@ -17,7 +17,7 @@ namespace Repositories.Implementations
         public IQueryable<Invoice> Query() => _context.Invoices.AsQueryable();
 
         // ============================================================
-        // 🔹 Lấy tất cả hóa đơn (FULL thông tin)
+        // 🔹 GET ALL (full info)
         // ============================================================
         public async Task<List<Invoice>> GetAllAsync()
         {
@@ -31,7 +31,9 @@ namespace Repositories.Implementations
                 .ToListAsync();
         }
 
-        // 🔹 Lấy chi tiết hóa đơn theo ID
+        // ============================================================
+        // 🔹 Get By Id
+        // ============================================================
         public async Task<Invoice?> GetByIdAsync(int id)
         {
             return await _context.Invoices
@@ -44,7 +46,7 @@ namespace Repositories.Implementations
         }
 
         // ============================================================
-        // 🔹 Lấy hóa đơn theo Customer hoặc Company theo tháng
+        // 🔹 Get invoice by customer + month
         // ============================================================
         public async Task<Invoice?> GetByCustomerAndMonthAsync(int customerId, int month, int year)
         {
@@ -67,7 +69,7 @@ namespace Repositories.Implementations
         }
 
         // ============================================================
-        // 🔹 Thêm / Cập nhật / Xóa cơ bản
+        // 🔹 CREATE / UPDATE / DELETE
         // ============================================================
         public async Task AddAsync(Invoice invoice)
         {
@@ -88,13 +90,17 @@ namespace Repositories.Implementations
         }
 
         // ============================================================
-        // 🔹 Get hoặc Create hóa đơn tháng (logic FIXED)
+        // ✅✅ FIXED — Get or Create monthly invoice
         // ============================================================
-        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int? customerId, int? companyId, int month, int year)
+        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(
+            int? customerId,
+            int? companyId,
+            int month,
+            int year)
         {
-            var now = DateTime.UtcNow.AddHours(7); // ✅ Đảm bảo timezone Việt Nam
+            var now = DateTime.UtcNow.AddHours(7);
 
-            // Tìm hóa đơn tháng đang xử lý (chưa thanh toán)
+            // ✅ Tìm invoice đúng tháng/năm
             var invoice = await _context.Invoices
                 .Include(i => i.Subscription)
                     .ThenInclude(s => s.SubscriptionPlan)
@@ -106,15 +112,13 @@ namespace Repositories.Implementations
                     i.BillingYear == year &&
                     i.IsMonthlyInvoice);
 
-            // ❗ Nếu hóa đơn cũ thuộc tháng trước (dù chưa thanh toán) → bỏ qua để tạo hóa đơn mới
-            if (invoice != null &&
-                (invoice.BillingYear < now.Year ||
-                 (invoice.BillingYear == now.Year && invoice.BillingMonth < now.Month)))
+            // ✅ Nếu đã tồn tại hóa đơn nhưng đã PAID → tạo hóa đơn mới
+            if (invoice?.Status == "Paid")
             {
                 invoice = null;
             }
 
-            // ✅ Nếu không tìm thấy hóa đơn phù hợp → tạo mới
+            // ✅ Không tìm thấy → tạo mới
             if (invoice == null)
             {
                 invoice = new Invoice
@@ -132,17 +136,19 @@ namespace Repositories.Implementations
                 await _context.Invoices.AddAsync(invoice);
                 await _context.SaveChangesAsync();
 
+                // Load lại để có Subscription + ChargingSessions
                 invoice = await _context.Invoices
                     .Include(i => i.Subscription)
                         .ThenInclude(s => s.SubscriptionPlan)
+                    .Include(i => i.ChargingSessions)
                     .FirstOrDefaultAsync(i => i.InvoiceId == invoice.InvoiceId);
             }
 
-            return invoice;
+            return invoice!;
         }
 
         // ============================================================
-        // 🔹 Tính lại tổng tiền hóa đơn (khi có thêm session)
+        // ✅ Recalculate invoice total when needed
         // ============================================================
         public async Task RecalculateInvoiceAsync(int invoiceId)
         {
@@ -150,6 +156,8 @@ namespace Repositories.Implementations
                 .Include(i => i.ChargingSessions)
                 .FirstOrDefaultAsync(i => i.InvoiceId == invoiceId)
                 ?? throw new Exception("Không tìm thấy hóa đơn.");
+
+            invoice.ChargingSessions ??= new List<ChargingSession>();
 
             var subtotal = invoice.ChargingSessions.Sum(s => s.Subtotal ?? 0);
             var tax = subtotal * 0.1M; // VAT 10%
@@ -165,7 +173,7 @@ namespace Repositories.Implementations
         }
 
         // ============================================================
-        // 🔹 GetAll có filter
+        // 🔹 GetAll + filter
         // ============================================================
         public async Task<List<Invoice>> GetAllAsync(Expression<Func<Invoice, bool>> filter)
         {
