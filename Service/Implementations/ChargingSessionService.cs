@@ -160,26 +160,43 @@ namespace Services.Implementations
 
             var rule = await _pricingRepo.GetByIdAsync(session.PricingRuleId)
                 ?? throw new Exception("Không tìm thấy PricingRule.");
+
             var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
             if (vehicle.BatteryCapacity is null or <= 0)
                 throw new Exception("Dung lượng pin của xe không hợp lệ.");
 
+            if (vehicle.BatteryCapacity is null or <= 0)
+                throw new Exception("Dung lượng pin không hợp lệ.");
+
+            // ==========================
+            // ✅ Tính toán SOC / điện năng
+            // ==========================
             int startSoc = session.StartSoc ?? 50;
-            int endSoc = dto.EndSoc ?? _rand.Next(startSoc + 10, 101);
+            int endSoc = dto.EndSoc ?? Math.Min(_rand.Next(startSoc + 10, 101), 100);
+
             if (endSoc <= startSoc)
                 throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
 
             session.EndSoc = endSoc;
-            session.EndedAt = DateTime.Now;
+            session.EndedAt = DateTime.UtcNow.AddHours(7);
+
             session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
-            session.DurationMin = (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
+
+            session.DurationMin =
+                (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
+
             session.IdleMin = dto.IdleMin ?? 0;
 
-            var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
+            // ==========================
+            // ✅ Subscription & Pricing
+            // ==========================
+            var activeSub = await _subscriptionRepo
+                .GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
             decimal subtotal = (session.EnergyKwh ?? 0M) * rule.PricePerKwh;
+
             int freeIdle = activeSub?.SubscriptionPlan?.FreeIdleMinutes ?? 0;
             int chargeableIdle = Math.Max(session.IdleMin.Value - freeIdle, 0);
             subtotal += chargeableIdle * rule.IdleFeePerMin;
@@ -192,7 +209,7 @@ namespace Services.Implementations
             session.Tax = Math.Round(session.Subtotal.Value * 0.1M, 2);
             session.Total = session.Subtotal + session.Tax;
             session.Status = "Completed";
-            session.UpdatedAt = DateTime.Now;
+            session.UpdatedAt = DateTime.UtcNow.AddHours(7);
 
             await _sessionRepo.UpdateAsync(session);
 
@@ -201,6 +218,7 @@ namespace Services.Implementations
             if (port != null)
             {
                 port.Status = "Available";
+                port.UpdatedAt = DateTime.UtcNow.AddHours(7);
                 await _portRepo.UpdateAsync(port);
             }
 
@@ -267,7 +285,6 @@ namespace Services.Implementations
                 session.InvoiceId = invoice.InvoiceId;
                 await _sessionRepo.UpdateAsync(session);
             }
-
 
             return session;
         }

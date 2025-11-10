@@ -63,7 +63,7 @@ namespace Services.Implementations
                 PowerKw = dto.PowerKw,
                 Status = NormalizeStatus(dto.Status), // mặc định Online
                 InstalledAt = dto.InstalledAt,
-                ImageUrl = dto.ImageUrl,
+                //ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -91,7 +91,7 @@ namespace Services.Implementations
             if (!string.IsNullOrWhiteSpace(dto.Status) && IsValidStatus(dto.Status.Trim()))
                 entity.Status = dto.Status.Trim(); // chỉ nhận 3 trạng thái
             entity.InstalledAt = dto.InstalledAt;
-            entity.ImageUrl = dto.ImageUrl;
+            //entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
 
             await _repo.UpdateAsync(entity);
