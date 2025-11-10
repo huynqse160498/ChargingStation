@@ -76,5 +76,12 @@ namespace WebAPI.Controllers
 
             return Ok(new { success = true, message = "Xóa thanh toán thành công." });
         }
+        [HttpGet("by-session/{sessionId:int}")]
+        public async Task<IActionResult> GetBySession(int sessionId)
+        {
+            var payments = await _paymentCrudService.GetByChargingSessionAsync(sessionId);
+            return Ok(new { success = true, total = payments?.Count() ?? 0, data = payments });
+        }
+
     }
 }

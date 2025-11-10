@@ -12,5 +12,8 @@ namespace Repositories.Interfaces
         Task<Payment> UpdateAsync(Payment payment);
         Task DeleteAsync(Payment payment);
         Task SaveAsync();
+        // IPaymentRepository
+        Task<List<Payment>> GetByChargingSessionAsync(int sessionId);
+
     }
 }
