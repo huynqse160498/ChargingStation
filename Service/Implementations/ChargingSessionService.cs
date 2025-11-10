@@ -277,11 +277,6 @@ namespace Services.Implementations
                 invoice.Total = (invoice.Total ?? 0M) + session.Total;
                 invoice.UpdatedAt = DateTime.UtcNow.AddHours(7);
 
-                // ❗ Detach navigation để tránh lỗi tracking
-                session.Customer = null;
-                session.Company = null;
-                session.Invoice = null;
-
                 // ✅ Cập nhật lại invoice và session
                 await _invoiceRepo.UpdateAsync(invoice);
 
