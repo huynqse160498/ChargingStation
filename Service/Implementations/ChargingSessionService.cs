@@ -233,22 +233,23 @@ namespace Services.Implementations
                 }
             }
 
-            // 🧾 HÓA ĐƠN: đảm bảo không ghi sai tháng & không gán vào hóa đơn Paid
+            // 🧾 HÓA ĐƠN: chỉ gán vào hóa đơn chưa thanh toán của tháng hiện tại
             if (session.CustomerId != null || session.CompanyId != null)
             {
                 var now = DateTime.UtcNow.AddHours(7);
 
-                // 🔹 Tìm hóa đơn Unpaid của tháng hiện tại
-                var allInvoices = await _invoiceRepo.GetAllAsync();
-                var invoice = allInvoices.FirstOrDefault(i =>
-                    i.CustomerId == session.CustomerId &&
-                    i.CompanyId == session.CompanyId &&
-                    i.BillingMonth == now.Month &&
-                    i.BillingYear == now.Year &&
-                    i.IsMonthlyInvoice &&
-                    i.Status != "Paid");
+                // 🔹 Lấy hóa đơn chưa thanh toán trong tháng hiện tại
+                var invoice = await _invoiceRepo.Query()
+                    .AsNoTracking() // không track để tránh conflict
+                    .FirstOrDefaultAsync(i =>
+                        i.CustomerId == session.CustomerId &&
+                        i.CompanyId == session.CompanyId &&
+                        i.BillingMonth == now.Month &&
+                        i.BillingYear == now.Year &&
+                        i.IsMonthlyInvoice &&
+                        i.Status == "Unpaid");
 
-                // ❌ Không có hoặc đã Paid → tạo hóa đơn mới
+                // ❌ Nếu không có → tạo hóa đơn mới
                 if (invoice == null)
                 {
                     invoice = new Invoice
@@ -259,32 +260,35 @@ namespace Services.Implementations
                         BillingYear = now.Year,
                         Status = "Unpaid",
                         IsMonthlyInvoice = true,
-                        CreatedAt = DateTime.Now,
-                        UpdatedAt = DateTime.Now,
-                        DueDate = DateTime.Now.AddMonths(1)
+                        CreatedAt = DateTime.UtcNow.AddHours(7),
+                        UpdatedAt = DateTime.UtcNow.AddHours(7),
+                        DueDate = DateTime.UtcNow.AddHours(7).AddMonths(1)
                     };
                     await _invoiceRepo.AddAsync(invoice);
                 }
 
-                // 🔹 Nếu có Subscription đang active thì gắn vào
+                // 🔹 Gắn Subscription nếu có
                 if (activeSub != null)
                 {
                     invoice.SubscriptionId = activeSub.SubscriptionId;
-                    await _invoiceRepo.UpdateAsync(invoice);
                 }
 
-                // 🔹 Cộng phiên sạc vào hóa đơn
-                invoice.ChargingSessions ??= new List<ChargingSession>();
-                invoice.ChargingSessions.Add(session);
+                // 🔹 Cộng tiền của phiên sạc
                 invoice.Total = (invoice.Total ?? 0M) + session.Total;
-                invoice.UpdatedAt = DateTime.Now;
+                invoice.UpdatedAt = DateTime.UtcNow.AddHours(7);
 
-                await _invoiceRepo.SaveAsync();
+                // ❗ Detach navigation để tránh lỗi tracking
+                session.Customer = null;
+                session.Company = null;
+                session.Invoice = null;
 
-                // 🔹 Gán lại InvoiceId cho session
+                // ✅ Cập nhật lại invoice và session
+                await _invoiceRepo.UpdateAsync(invoice);
+
                 session.InvoiceId = invoice.InvoiceId;
                 await _sessionRepo.UpdateAsync(session);
             }
+
 
             return session;
         }
