@@ -44,6 +44,7 @@ namespace Repositories.DTOs
         public int BillingYear { get; set; }
         public string Status { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? DueDate { get; set; } // 🔹 thêm dòng này
 
         public List<InvoiceSessionDto> ChargingSessions { get; set; } = new();
     }
@@ -69,5 +70,7 @@ namespace Repositories.DTOs
         public int BillingMonth { get; set; }
         public int BillingYear { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? DueDate { get; set; } // 🔹 thêm dòng này
+
     }
 }

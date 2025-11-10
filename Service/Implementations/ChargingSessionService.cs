@@ -36,7 +36,7 @@ namespace Services.Implementations
         }
 
         // ============================================================
-        // 🔹 Xác định khung giờ hiện tại
+        // 🔹 Helper: xác định khung giờ hiện tại
         // ============================================================
         private string GetCurrentTimeRange()
         {
@@ -47,7 +47,7 @@ namespace Services.Implementations
         }
 
         // ============================================================
-        // 🔹 Helper: xác định loại xe & dung lượng pin cho khách vãng lai
+        // 🔹 Helper: xác định loại xe & dung lượng pin
         // ============================================================
         private (string type, decimal battery) DetermineVehicleType(string? manualType, string connectorType, decimal powerKw)
         {
@@ -73,7 +73,7 @@ namespace Services.Implementations
             int portId;
             int vehicleId;
 
-            // 1️⃣ Nếu có Booking
+            // 1️⃣ Có booking
             if (dto.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(dto.BookingId.Value)
@@ -84,13 +84,12 @@ namespace Services.Implementations
 
                 portId = booking.PortId;
                 vehicleId = booking.VehicleId;
-
                 booking.Status = "InProgress";
                 await _bookingRepo.UpdateAsync(booking);
             }
             else
             {
-                // 2️⃣ Không có Booking
+                // 2️⃣ Không có booking
                 if (!dto.PortId.HasValue)
                     throw new Exception("Phải chọn PortId khi không có Booking.");
 
@@ -107,7 +106,7 @@ namespace Services.Implementations
                 vehicleId = dto.VehicleId;
             }
 
-            // 3️⃣ Lấy thông tin Charger và Vehicle
+            // 3️⃣ Kiểm tra connector type tương thích
             var portEntity = await _portRepo.GetByIdAsync(portId)
                 ?? throw new Exception("Không tìm thấy Port.");
             var charger = portEntity.Charger
@@ -115,18 +114,13 @@ namespace Services.Implementations
             var vehicle = await _vehicleRepo.GetByIdAsync(vehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
-            // ✅ Kiểm tra connector type tương thích
             if (!string.Equals(vehicle.ConnectorType, portEntity.ConnectorType, StringComparison.OrdinalIgnoreCase))
                 throw new Exception($"Xe ({vehicle.ConnectorType}) không tương thích với cổng sạc ({portEntity.ConnectorType}).");
 
-            // 4️⃣ Tìm PricingRule phù hợp
+            // 4️⃣ PricingRule
             string timeRange = GetCurrentTimeRange();
             var rule = await _pricingRepo.GetAll()
-                .Where(x =>
-                    x.ChargerType == charger.Type &&
-                    x.PowerKw == charger.PowerKw &&
-                    x.TimeRange == timeRange &&
-                    x.Status == "Active")
+                .Where(x => x.ChargerType == charger.Type && x.PowerKw == charger.PowerKw && x.TimeRange == timeRange && x.Status == "Active")
                 .FirstOrDefaultAsync()
                 ?? throw new Exception($"Không có PricingRule cho {charger.Type} - {charger.PowerKw}kW ({timeRange}).");
 
@@ -134,7 +128,7 @@ namespace Services.Implementations
             int? customerId = dto.CustomerId > 0 ? dto.CustomerId : null;
             int? companyId = dto.CustomerId > 0 ? null : (dto.CompanyId > 0 ? dto.CompanyId : vehicle.CompanyId);
 
-            // 6️⃣ Tạo session mới
+            // 6️⃣ Tạo session
             var session = new ChargingSession
             {
                 BookingId = dto.BookingId,
@@ -168,6 +162,7 @@ namespace Services.Implementations
                 ?? throw new Exception("Không tìm thấy PricingRule.");
             var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
+
             if (vehicle.BatteryCapacity is null or <= 0)
                 throw new Exception("Dung lượng pin của xe không hợp lệ.");
 
@@ -201,6 +196,7 @@ namespace Services.Implementations
 
             await _sessionRepo.UpdateAsync(session);
 
+            // 🟢 Giải phóng cổng
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
             {
@@ -208,6 +204,7 @@ namespace Services.Implementations
                 await _portRepo.UpdateAsync(port);
             }
 
+            // 🟢 Cập nhật booking nếu có
             if (session.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(session.BookingId.Value);
@@ -218,15 +215,69 @@ namespace Services.Implementations
                 }
             }
 
+            // 🧾 HÓA ĐƠN: đảm bảo không ghi sai tháng & không gán vào hóa đơn Paid
+            if (session.CustomerId != null || session.CompanyId != null)
+            {
+                var now = DateTime.UtcNow.AddHours(7);
+
+                // 🔹 Tìm hóa đơn Unpaid của tháng hiện tại
+                var allInvoices = await _invoiceRepo.GetAllAsync();
+                var invoice = allInvoices.FirstOrDefault(i =>
+                    i.CustomerId == session.CustomerId &&
+                    i.CompanyId == session.CompanyId &&
+                    i.BillingMonth == now.Month &&
+                    i.BillingYear == now.Year &&
+                    i.IsMonthlyInvoice &&
+                    i.Status != "Paid");
+
+                // ❌ Không có hoặc đã Paid → tạo hóa đơn mới
+                if (invoice == null)
+                {
+                    invoice = new Invoice
+                    {
+                        CustomerId = session.CustomerId,
+                        CompanyId = session.CompanyId,
+                        BillingMonth = now.Month,
+                        BillingYear = now.Year,
+                        Status = "Unpaid",
+                        IsMonthlyInvoice = true,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now,
+                        DueDate = DateTime.Now.AddMonths(1)
+                    };
+                    await _invoiceRepo.AddAsync(invoice);
+                }
+
+                // 🔹 Nếu có Subscription đang active thì gắn vào
+                if (activeSub != null)
+                {
+                    invoice.SubscriptionId = activeSub.SubscriptionId;
+                    await _invoiceRepo.UpdateAsync(invoice);
+                }
+
+                // 🔹 Cộng phiên sạc vào hóa đơn
+                invoice.ChargingSessions ??= new List<ChargingSession>();
+                invoice.ChargingSessions.Add(session);
+                invoice.Total = (invoice.Total ?? 0M) + session.Total;
+                invoice.UpdatedAt = DateTime.Now;
+
+                await _invoiceRepo.SaveAsync();
+
+                // 🔹 Gán lại InvoiceId cho session
+                session.InvoiceId = invoice.InvoiceId;
+                await _sessionRepo.UpdateAsync(session);
+            }
+
+
             return session;
         }
+
 
         // ============================================================
         // 🔹 Bắt đầu phiên sạc cho khách vãng lai
         // ============================================================
         public async Task<ChargingSession> StartGuestSessionAsync(GuestChargingStartDto dto)
         {
-            // 1️⃣ Kiểm tra trụ sạc hợp lệ
             var port = await _portRepo.Query()
                 .Include(p => p.Charger)
                 .FirstOrDefaultAsync(p => p.Code == dto.PortCode)
@@ -235,55 +286,35 @@ namespace Services.Implementations
             if (port.Status != "Available")
                 throw new Exception("Trụ sạc đang bận hoặc không khả dụng.");
 
-            var charger = port.Charger
-                ?? throw new Exception("Không tìm thấy thông tin bộ sạc (Charger) của trụ này.");
+            var charger = port.Charger ?? throw new Exception("Không tìm thấy thông tin bộ sạc.");
 
-            // 2️⃣ Xử lý ConnectorType — fallback linh hoạt
-            var connector = string.IsNullOrEmpty(dto.ConnectorType)
-                ? port.ConnectorType                          // ✅ tự lấy connector của trụ sạc
-                : dto.ConnectorType;
+            var connector = string.IsNullOrEmpty(dto.ConnectorType) ? port.ConnectorType : dto.ConnectorType;
 
-            // 3️⃣ Kiểm tra tương thích (nếu người dùng có nhập)
             if (!string.IsNullOrEmpty(dto.ConnectorType) &&
                 !string.Equals(dto.ConnectorType, port.ConnectorType, StringComparison.OrdinalIgnoreCase))
-            {
                 throw new Exception($"Đầu nối '{dto.ConnectorType}' không tương thích với trụ '{port.ConnectorType}'.");
-            }
 
-            // 4️⃣ Xác định loại xe & dung lượng pin dựa vào connector
-            var (vehicleType, batteryCapacity) = DetermineVehicleType(
-                dto.VehicleType,
-                connector,
-                port.MaxPowerKw ?? charger.PowerKw ?? 0M
-            );
+            var (vehicleType, batteryCapacity) = DetermineVehicleType(dto.VehicleType, connector, port.MaxPowerKw ?? charger.PowerKw ?? 0M);
 
-            // 5️⃣ Tạo bản ghi Vehicle tạm cho khách vãng lai
             var vehicle = new Vehicle
             {
                 LicensePlate = dto.LicensePlate,
                 VehicleType = vehicleType,
                 BatteryCapacity = batteryCapacity,
-                ConnectorType = connector,   // ✅ sử dụng connector đã xác định
+                ConnectorType = connector,
                 ManufactureYear = DateTime.Now.Year,
                 CreatedAt = DateTime.Now
             };
             await _vehicleRepo.AddAsync(vehicle);
 
-            // 6️⃣ Tìm PricingRule phù hợp
             string timeRange = GetCurrentTimeRange();
             var rule = await _pricingRepo.GetAll()
-                .Where(r =>
-                    r.ChargerType == charger.Type &&
-                    r.PowerKw == (charger.PowerKw ?? 0M) &&
-                    r.TimeRange == timeRange &&
-                    r.Status == "Active")
+                .Where(r => r.ChargerType == charger.Type && r.PowerKw == (charger.PowerKw ?? 0M) && r.TimeRange == timeRange && r.Status == "Active")
                 .FirstOrDefaultAsync()
                 ?? throw new Exception($"Không tìm thấy PricingRule phù hợp cho {charger.Type} - {charger.PowerKw}kW ({timeRange}).");
 
-            // 7️⃣ Random SOC ban đầu
             int startSoc = _rand.Next(20, 60);
 
-            // 8️⃣ Tạo phiên sạc
             var session = new ChargingSession
             {
                 VehicleId = vehicle.VehicleId,
@@ -295,17 +326,13 @@ namespace Services.Implementations
                 Status = "Charging"
             };
 
-            // 9️⃣ Cập nhật trạng thái trụ sạc
             port.Status = "InUse";
             port.UpdatedAt = DateTime.Now;
             await _portRepo.UpdateAsync(port);
 
-            // 🔟 Lưu phiên sạc
             await _sessionRepo.AddAsync(session);
-
             return session;
         }
-
 
         // ============================================================
         // 🔹 Kết thúc phiên sạc cho khách vãng lai
@@ -314,8 +341,7 @@ namespace Services.Implementations
         {
             var session = await _sessionRepo.Query()
                 .Include(s => s.PricingRule)
-                .Include(s => s.Port)
-                    .ThenInclude(p => p.Charger)
+                .Include(s => s.Port).ThenInclude(p => p.Charger)
                 .Include(s => s.Vehicle)
                 .FirstOrDefaultAsync(s => s.ChargingSessionId == dto.ChargingSessionId)
                 ?? throw new Exception("Không tìm thấy phiên sạc.");
@@ -363,7 +389,6 @@ namespace Services.Implementations
         // ============================================================
         public async Task<List<ChargingSession>> GetAllAsync() => await _sessionRepo.GetAllAsync();
         public async Task<ChargingSession?> GetByIdAsync(int id) => await _sessionRepo.GetByIdAsync(id);
-
         public async Task DeleteAsync(int id)
         {
             var session = await _sessionRepo.GetByIdAsync(id)

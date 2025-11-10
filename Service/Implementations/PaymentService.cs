@@ -147,6 +147,8 @@ namespace Services.Implementations
                 return await HandleInvoicePaymentAsync(id);
             if (orderInfo.Contains("subscription"))
                 return await HandleSubscriptionPaymentAsync(id);
+            if (orderInfo.Contains("chargingsession") || orderInfo.Contains("phiên sạc"))
+                return await HandleGuestSessionPaymentAsync(id);
 
             return "❓ Không xác định được loại giao dịch.";
         }
@@ -299,7 +301,8 @@ namespace Services.Implementations
                 Status = "Success",
                 PaidAt = now,
                 CreatedAt = now,
-                UpdatedAt = now
+                UpdatedAt = now,
+
             };
 
             // 🔁 Gia hạn hoặc kích hoạt mới
@@ -348,13 +351,16 @@ namespace Services.Implementations
                 BillingMonth = now.Month,
                 BillingYear = now.Year,
                 Subtotal = amount,
-                Tax = Math.Round(amount * 0.1M, 2),
-                Total = Math.Round(amount * 1.1M, 2),
-                Status = "Paid", // Vì vừa thanh toán
+                Tax = 0,                      // ❌ Không tính VAT cho Subscription
+                Total = amount,               // ✅ Tổng = giá gói
+                Status = "Paid",
                 CreatedAt = now,
                 UpdatedAt = now,
-                IsMonthlyInvoice = false
+                IsMonthlyInvoice = false,
+                DueDate = now.AddMonths(1)
+
             };
+
             await _invoiceRepo.AddAsync(newInvoice);
 
             // 🔔 Gửi thông báo
