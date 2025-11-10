@@ -147,6 +147,8 @@ namespace Services.Implementations
                 return await HandleInvoicePaymentAsync(id);
             if (orderInfo.Contains("subscription"))
                 return await HandleSubscriptionPaymentAsync(id);
+            if (orderInfo.Contains("chargingsession") || orderInfo.Contains("phiên sạc"))
+                return await HandleGuestSessionPaymentAsync(id);
 
             return "❓ Không xác định được loại giao dịch.";
         }
