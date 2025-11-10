@@ -128,9 +128,7 @@ namespace Repositories.Implementations
                     Status = "Unpaid",
                     IsMonthlyInvoice = true,
                     CreatedAt = now,
-                    UpdatedAt = now,
-                    DueDate = now.AddMonths(1) // Hạn thanh toán sau 1 tháng
-                    
+                    UpdatedAt = now
                 };
 
                 await _context.Invoices.AddAsync(invoice);
