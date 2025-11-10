@@ -36,6 +36,7 @@ namespace ChargingStationSystem.Controllers
                 i.Total,
                 i.CreatedAt,
                 i.UpdatedAt,
+                i.DueDate,
 
                 Subscription = i.Subscription == null ? null : new
                 {
@@ -88,6 +89,8 @@ namespace ChargingStationSystem.Controllers
                 i.BillingYear,
                 i.Status,
                 i.Total,
+                i.CreatedAt,
+                i.DueDate,
                 SubscriptionPlan = i.Subscription?.SubscriptionPlan?.PlanName
             });
 
@@ -115,6 +118,8 @@ namespace ChargingStationSystem.Controllers
                 i.BillingYear,
                 i.Status,
                 i.Total,
+                i.CreatedAt,
+                i.DueDate,
                 SubscriptionPlan = i.Subscription?.SubscriptionPlan?.PlanName
             });
 
@@ -151,7 +156,7 @@ namespace ChargingStationSystem.Controllers
                     invoice.Total,
                     invoice.CreatedAt,
                     invoice.UpdatedAt,
-
+                    invoice.DueDate,
                     Subscription = invoice.Subscription == null ? null : new
                     {
                         invoice.Subscription.SubscriptionId,
@@ -201,6 +206,7 @@ namespace ChargingStationSystem.Controllers
                         invoice.Status,
                         invoice.Total,
                         invoice.CreatedAt
+       
                     }
                 });
             }

@@ -234,7 +234,9 @@ namespace Services.Implementations
                         Status = "Unpaid",
                         IsMonthlyInvoice = true,
                         CreatedAt = DateTime.Now,
-                        UpdatedAt = DateTime.Now
+                        UpdatedAt = DateTime.Now,
+                        DueDate = DateTime.Now.AddMonths(1),
+
                     };
                     await _invoiceRepo.AddAsync(invoice);
                 }

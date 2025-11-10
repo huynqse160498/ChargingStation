@@ -301,7 +301,8 @@ namespace Services.Implementations
                 Status = "Success",
                 PaidAt = now,
                 CreatedAt = now,
-                UpdatedAt = now
+                UpdatedAt = now,
+
             };
 
             // 🔁 Gia hạn hoặc kích hoạt mới
@@ -355,7 +356,9 @@ namespace Services.Implementations
                 Status = "Paid",
                 CreatedAt = now,
                 UpdatedAt = now,
-                IsMonthlyInvoice = false
+                IsMonthlyInvoice = false,
+                DueDate = now.AddMonths(1)
+
             };
 
             await _invoiceRepo.AddAsync(newInvoice);
