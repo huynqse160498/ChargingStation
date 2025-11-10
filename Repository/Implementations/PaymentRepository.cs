@@ -23,6 +23,7 @@ namespace Repositories.Implementations
                 .Include(p => p.Booking)
                 .Include(p => p.Invoice)
                 .Include(p => p.Subscription)
+                .Include(p => p.ChargingSessionId)
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -35,6 +36,7 @@ namespace Repositories.Implementations
                 .Include(p => p.Booking)
                 .Include(p => p.Invoice)
                 .Include(p => p.Subscription)
+                .Include (p => p.ChargingSessionId)
                 .FirstOrDefaultAsync(p => p.PaymentId == id);
         }
 
