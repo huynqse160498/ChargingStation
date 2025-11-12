@@ -200,7 +200,7 @@ namespace Services.Implementations
         private static string? BuildActionUrl(int? bookingId, int? invoiceId, int? subscriptionId)
         {
             if (invoiceId.HasValue) return $"/invoices/{invoiceId}";
-            if (bookingId.HasValue) return $"/bookings/{bookingId}";
+            if (bookingId.HasValue) return $"/user/history";
             if (subscriptionId.HasValue) return $"/subscriptions/{subscriptionId}";
             return null;
         }
