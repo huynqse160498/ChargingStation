@@ -187,7 +187,7 @@ namespace Services.Implementations
                 Message = $"Đặt lịch #{booking.BookingId} đã được thanh toán thành công.",
                 Type = "Booking",
                 Priority = "Normal",
-                ActionUrl = $"/payment/success?bookingId={bookingId}"
+                ActionUrl = $"/user/history"
             });
 
             return $"✅ Thanh toán thành công cho Booking #{booking.BookingId}.";
@@ -253,7 +253,7 @@ namespace Services.Implementations
                             Message = $"Gói {plan.PlanName} của bạn đã được kích hoạt và có hiệu lực đến {sub.EndDate:dd/MM/yyyy}.",
                             Type = "Subscription",
                             Priority = "High",
-                            ActionUrl = $"/manageSubcription"
+                            ActionUrl = $"/invoiceSummary"
                         });
                     }
                 }
