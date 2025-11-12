@@ -199,11 +199,19 @@ namespace Services.Implementations
 
         private static string? BuildActionUrl(int? bookingId, int? invoiceId, int? subscriptionId)
         {
-            if (invoiceId.HasValue) return $"/invoices/{invoiceId}";
-            if (bookingId.HasValue) return $"/user/history";
-            if (subscriptionId.HasValue) return $"/subscriptions/{subscriptionId}";
+            // 🔹 Ưu tiên từng loại theo yêu cầu
+            if (invoiceId.HasValue)
+                return $"/invoiceDetail/{invoiceId}";
+
+            if (subscriptionId.HasValue)
+                return "/invoiceSummary";
+
+            if (bookingId.HasValue)
+                return "/user/history";
+
             return null;
         }
+
 
         private static NotificationReadDto MapToRead(Notification n) => new()
         {
