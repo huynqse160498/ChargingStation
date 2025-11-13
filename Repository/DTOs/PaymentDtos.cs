@@ -18,11 +18,13 @@ namespace Repositories.DTOs
     public class PaymentListItemDto
     {
         public int PaymentId { get; set; }
-        public int BookingId { get; set; }
-        public int InvoiceId { get; set; }
+        public int? BookingId { get; set; }
+        public int? InvoiceId { get; set; }
         public int? CompanyId { get; set; }
-        public int CustomerId { get; set; }
-        public int SubscriptionId { get; set; } 
+        public int? CustomerId { get; set; }
+        public int? SubscriptionId { get; set; }
+        public int? ChargingSessionId { get; set; } // nếu thanh toán trạm sạc trực tiếp
+
         public decimal? Amount { get; set; }
         public string Method { get; set; }
         public string Status { get; set; }

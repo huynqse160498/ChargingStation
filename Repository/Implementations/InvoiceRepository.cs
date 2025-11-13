@@ -17,7 +17,7 @@ namespace Repositories.Implementations
         public IQueryable<Invoice> Query() => _context.Invoices.AsQueryable();
 
         // ============================================================
-        // 🔹 Lấy tất cả hóa đơn (FULL thông tin)
+        // 🔹 GET ALL (full info)
         // ============================================================
         public async Task<List<Invoice>> GetAllAsync()
         {
@@ -31,7 +31,9 @@ namespace Repositories.Implementations
                 .ToListAsync();
         }
 
-        // 🔹 Lấy chi tiết hóa đơn theo ID
+        // ============================================================
+        // 🔹 Get By Id
+        // ============================================================
         public async Task<Invoice?> GetByIdAsync(int id)
         {
             return await _context.Invoices
@@ -67,7 +69,7 @@ namespace Repositories.Implementations
         }
 
         // ============================================================
-        // 🔹 Thêm / Cập nhật / Xóa cơ bản
+        // 🔹 CREATE / UPDATE / DELETE
         // ============================================================
         public async Task AddAsync(Invoice invoice)
         {
@@ -90,7 +92,11 @@ namespace Repositories.Implementations
         // ============================================================
         // 🔹 Get hoặc Create hóa đơn tháng (logic FIXED)
         // ============================================================
-        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int? customerId, int? companyId, int month, int year)
+        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(
+            int? customerId,
+            int? companyId,
+            int month,
+            int year)
         {
             var now = DateTime.UtcNow.AddHours(7); // ✅ Đảm bảo timezone Việt Nam
 
@@ -100,8 +106,10 @@ namespace Repositories.Implementations
                     .ThenInclude(s => s.SubscriptionPlan)
                 .Include(i => i.ChargingSessions)
                 .FirstOrDefaultAsync(i =>
-                    i.CustomerId == customerId &&
-                    i.CompanyId == companyId &&
+                    (
+                        (customerId != null && i.CustomerId == customerId) ||
+                        (companyId != null && i.CompanyId == companyId)
+                    ) &&
                     i.BillingMonth == month &&
                     i.BillingYear == year &&
                     i.IsMonthlyInvoice);
@@ -177,3 +185,4 @@ namespace Repositories.Implementations
         public async Task SaveAsync() => await _context.SaveChangesAsync();
     }
 }
+    

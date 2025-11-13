@@ -26,7 +26,7 @@ namespace Repositories.DTOs.Stations
         [MaxLength(20)]
         public string Status { get; set; } = "Open"; // default = Open
 
-        [MaxLength(255)]
-        public string? ImageUrl { get; set; }
+        //[MaxLength(255)]
+        //public string? ImageUrl { get; set; }
     }
 }

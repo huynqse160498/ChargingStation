@@ -26,6 +26,7 @@ namespace Services.Implementations
                 BookingId = p.BookingId ?? 0,
                 InvoiceId = p.InvoiceId ?? 0,
                 SubscriptionId = p.SubscriptionId ?? 0,
+                ChargingSessionId = p.ChargingSessionId,
                 CompanyId = p.CompanyId,
                 CustomerId = p.CustomerId,
                 Amount = p.Amount,
@@ -46,6 +47,7 @@ namespace Services.Implementations
                 BookingId = p.BookingId ?? 0,
                 InvoiceId = p.InvoiceId ?? 0,
                 SubscriptionId = p.SubscriptionId ?? 0,
+                ChargingSessionId = p.ChargingSessionId,
                 CompanyId = p.CompanyId,
                 CustomerId = p.CustomerId,
                 Amount = p.Amount,
@@ -74,7 +76,24 @@ namespace Services.Implementations
             await _repo.UpdateAsync(payment);
             return true;
         }
-
+        public async Task<IEnumerable<PaymentListItemDto>> GetByChargingSessionAsync(int sessionId)
+        {
+            var data = await _repo.GetByChargingSessionAsync(sessionId);
+            return data.Select(p => new PaymentListItemDto
+            {
+                PaymentId = p.PaymentId,
+                BookingId = p.BookingId ?? 0,
+                InvoiceId = p.InvoiceId ?? 0,
+                SubscriptionId = p.SubscriptionId ?? 0,
+                ChargingSessionId = p.ChargingSessionId,
+                CompanyId = p.CompanyId,
+                CustomerId = p.CustomerId,
+                Amount = p.Amount,
+                Method = p.Method,
+                Status = p.Status,
+                PaidAt = p.PaidAt
+            });
+        }
         public async Task<bool> DeleteAsync(int id)
         {
             var payment = await _repo.GetByIdAsync(id);

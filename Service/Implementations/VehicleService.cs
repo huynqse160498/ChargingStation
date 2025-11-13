@@ -85,7 +85,7 @@ namespace Services.Implementations
                 CurrentSoc = dto.CurrentSoc,
                 ConnectorType = dto.ConnectorType?.Trim(),
                 ManufactureYear = dto.ManufactureYear,
-                ImageUrl = dto.ImageUrl?.Trim(),
+                //ImageUrl = dto.ImageUrl?.Trim(),
                 VehicleType = dto.VehicleType?.Trim(),
 
                 // NEW: mặc định Active (nếu DTO có Status thì chuẩn hoá theo whitelist)
@@ -117,7 +117,7 @@ namespace Services.Implementations
             v.CurrentSoc = dto.CurrentSoc;
             v.ConnectorType = dto.ConnectorType?.Trim();
             v.ManufactureYear = dto.ManufactureYear;
-            v.ImageUrl = dto.ImageUrl?.Trim();
+            //v.ImageUrl = dto.ImageUrl?.Trim();
             v.VehicleType = dto.VehicleType?.Trim();
 
             // NEW: chỉ cập nhật nếu DTO gửi status hợp lệ; nếu không thì giữ nguyên

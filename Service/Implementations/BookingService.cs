@@ -180,7 +180,7 @@ namespace Services.Implementations
                 Message = $"Bạn đã đặt lịch sạc tại cổng #{booking.PortId} từ {booking.StartTime:HH:mm dd/MM} đến {booking.EndTime:HH:mm dd/MM}.",
                 Type = "Booking",
                 Priority = "Normal",
-                ActionUrl = $"/bookings/{booking.BookingId}"
+                ActionUrl = $"/user/history"
             });
             return $"✅ {owner} đã đặt lịch thành công! Giá tạm tính: {price:N0} VNĐ";
         }
@@ -275,7 +275,7 @@ namespace Services.Implementations
                 Message = $"Đặt lịch #{booking.BookingId} của bạn đã được xác nhận. Hãy đến đúng giờ để sạc xe nhé!",
                 Type = "Booking",
                 Priority = "Normal",
-                ActionUrl = $"/bookings/{booking.BookingId}"
+                ActionUrl = $"/user/history"
             });
 
             return $"✅ Cập nhật đặt lịch thành công! Giá tạm tính mới: {booking.Price:N0} VNĐ";

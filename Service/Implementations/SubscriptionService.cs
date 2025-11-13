@@ -103,7 +103,7 @@ namespace Services.Implementations
                 Message = $"Bạn đã đăng ký gói '{plan.PlanName}' thành công. Vui lòng thanh toán để kích hoạt.",
                 Type = "Subscription",
                 Priority = "Normal",
-                ActionUrl = $"/manageSubcription"
+                ActionUrl = $"/invoiceSummary"
             });
 
             saved.SubscriptionPlan = plan;

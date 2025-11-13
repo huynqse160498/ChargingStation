@@ -48,7 +48,7 @@ namespace Services.Implementations
                 ConnectorType = dto.ConnectorType,
                 MaxPowerKw = dto.MaxPowerKw,   // decimal?
                 Status = "Available",
-                ImageUrl = dto.ImageUrl,
+                //ImageUrl = dto.ImageUrl,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -68,7 +68,7 @@ namespace Services.Implementations
             entity.ConnectorType = dto.ConnectorType;
             entity.MaxPowerKw = dto.MaxPowerKw;
             entity.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Available" : dto.Status;
-            entity.ImageUrl = dto.ImageUrl;
+            //entity.ImageUrl = dto.ImageUrl;
             entity.UpdatedAt = DateTime.UtcNow;
 
             await _repo.UpdateAsync(entity);
