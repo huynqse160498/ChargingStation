@@ -296,8 +296,8 @@ namespace Services.Implementations
         {
             var port = await _portRepo.Query()
                 .Include(p => p.Charger)
-                .FirstOrDefaultAsync(p => p.Code == dto.PortCode)
-                ?? throw new Exception("Không tìm thấy trụ sạc với mã này.");
+                .FirstOrDefaultAsync(p => p.PortId == dto.PortId)
+                ?? throw new Exception("Không tìm thấy cổng sạc.");
 
             if (port.Status != "Available")
                 throw new Exception("Trụ sạc đang bận hoặc không khả dụng.");
