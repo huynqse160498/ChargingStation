@@ -136,13 +136,31 @@ namespace Services.Implementations
             if (!user.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
                 return new { Success = false, Message = "Tài khoản đã bị khóa" };
 
-            var claims = new[]
+            // Base claims
+            var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.AccountId.ToString()),
+        new Claim(ClaimTypes.Name, user.UserName),
+        new Claim(ClaimTypes.Role, user.Role),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
+
+            // 👉 Thêm CompanyId khi role = Company (để các endpoint analytics đọc)
+            if (string.Equals(user.Role, "Company", StringComparison.OrdinalIgnoreCase))
             {
-                new Claim(ClaimTypes.NameIdentifier, user.AccountId.ToString()),
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Role, user.Role),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+                // Lấy companyId theo AccountId
+                var companyId = await _context.Companies
+                    .AsNoTracking()
+                    .Where(c => c.AccountId == user.AccountId)
+                    .Select(c => (int?)c.CompanyId)
+                    .FirstOrDefaultAsync();
+
+                if (companyId.HasValue)
+                {
+                    claims.Add(new Claim("CompanyId", companyId.Value.ToString()));
+                }
+                // Nếu không có company row thì KHÔNG thêm claim → FE/BE sẽ báo thiếu CompanyId
+            }
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -162,6 +180,7 @@ namespace Services.Implementations
                 Token = new JwtSecurityTokenHandler().WriteToken(token)
             };
         }
+
 
         // ------------------- CRUD tài khoản -------------------
         public async Task<IEnumerable<Account>> GetAllAsync()
