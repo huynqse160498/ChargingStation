@@ -414,7 +414,7 @@ namespace Services.Implementations
                 Message = $"Bạn đã thanh toán thành công hóa đơn #{invoiceId} và gói đăng ký #{subscriptionId}.",
                 Type = "Payment",
                 Priority = "High",
-                ActionUrl = $"/payments/{comboPayment.PaymentId}"
+                ActionUrl = $"/invoiceSummary"
             });
 
             return $"✅ Thanh toán combo thành công!\n{invoiceMsg}\n{subMsg}";
