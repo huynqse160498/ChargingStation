@@ -89,7 +89,7 @@ namespace ChargingStationSystem
             builder.Services.AddScoped<IInvoiceService, InvoiceService>();
             builder.Services.AddScoped<IChargingSessionRepository, ChargingSessionRepository>();
             builder.Services.AddScoped<IChargingSessionService, ChargingSessionService>();
-
+            builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
     
             builder.Services.AddHttpContextAccessor(); // cần cho AuthService
 
