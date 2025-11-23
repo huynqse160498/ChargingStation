@@ -59,7 +59,6 @@ namespace Services.Implementations
             }
 
             string c = connectorType.ToLower();
-            if (c.Contains("scooter") || c.Contains("2-pin")) return ("Motorbike", 3M);
             if (c.Contains("type2")) return ("Car", powerKw >= 22 ? 60M : 40M);
             if (c.Contains("ccs2") || c.Contains("chademo")) return ("Car", 60M);
             return powerKw <= 7 ? ("Motorbike", 3M) : ("Car", 40M);
