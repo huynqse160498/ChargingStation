@@ -160,7 +160,7 @@ namespace Services.Implementations
         }
 
         // 🟩 Xoá
-        public async Task<string> DeleteAsync(int id)
+        public async Task<string> DeleteAsync(int id)   
         {
             var rule = await _repo.GetByIdAsync(id);
             if (rule == null)
