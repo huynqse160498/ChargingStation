@@ -33,13 +33,11 @@ namespace Services.Implementations
                 .Include(s => s.Port).ThenInclude(p => p.Charger).ThenInclude(c => c.Station)
                 .Where(s => s.StartedAt >= from && s.StartedAt < to && s.Status == "Completed");
 
-            // 🔁 MỚI: nếu có companyId thì luôn lọc (admin hay company đều áp dụng)
             if (companyId.HasValue)
                 q = q.Where(s => s.CompanyId == companyId.Value);
 
-            // 🔁 Với company user mà vì lý do nào đó không có companyId (không nên xảy ra) thì chặn rộng quyền
             if (!adminView && !companyId.HasValue)
-                q = q.Where(s => false); // hoặc throw
+                q = q.Where(s => false); 
 
             return q.AsNoTracking();
         }
@@ -106,7 +104,7 @@ namespace Services.Implementations
                 Year = year,
                 CustomerTotal = customer,
                 CompanyTotal = company,
-                GuestTotal = adminView ? guest : 0M // company view không cần guest tổng
+                GuestTotal = adminView ? guest : 0M 
             };
         }
 
@@ -303,7 +301,6 @@ namespace Services.Implementations
      string scope, double minUtilization = 0.05, int minSessions = 3)
         {
             var q = BaseQuery(month, year, companyId, adminView);
-            // dùng decimal cho tính toán
             decimal totalMinutesInMonth = (decimal)(EndOfMonthUtc7(year, month) - StartOfMonthUtc7(year, month)).TotalMinutes;
 
             if (scope.Equals("Station", StringComparison.OrdinalIgnoreCase))
