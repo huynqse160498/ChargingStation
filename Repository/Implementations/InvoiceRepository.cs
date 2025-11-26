@@ -92,64 +92,32 @@ namespace Repositories.Implementations
         // ============================================================
         // 🔹 Get hoặc Create hóa đơn tháng (logic FIXED)
         // ============================================================
-        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(
-            int? customerId,
-            int? companyId,
-            int month,
-            int year)
+        public async Task<Invoice?> GetMonthlyInvoiceAsync(int? customerId, int? companyId, int month, int year)
         {
-            var now = DateTime.UtcNow.AddHours(7); // ✅ Đảm bảo timezone Việt Nam
-
-            // Tìm hóa đơn tháng đang xử lý (chưa thanh toán)
-            var invoice = await _context.Invoices
-                .Include(i => i.Subscription)
-                    .ThenInclude(s => s.SubscriptionPlan)
+            IQueryable<Invoice> query = _context.Invoices
+                .Include(i => i.Subscription).ThenInclude(s => s.SubscriptionPlan)
                 .Include(i => i.ChargingSessions)
-                .FirstOrDefaultAsync(i =>
-                    (
-                        (customerId != null && i.CustomerId == customerId) ||
-                        (companyId != null && i.CompanyId == companyId)
-                    ) &&
-                    i.BillingMonth == month &&
-                    i.BillingYear == year &&
-                    i.IsMonthlyInvoice);
+                .Where(i => i.BillingMonth == month && i.BillingYear == year && i.IsMonthlyInvoice);
 
-            // ❗ Nếu hóa đơn cũ thuộc tháng trước (dù chưa thanh toán) → bỏ qua để tạo hóa đơn mới
-            if (invoice != null &&
-                (invoice.BillingYear < now.Year ||
-                 (invoice.BillingYear == now.Year && invoice.BillingMonth < now.Month)))
-            {
-                invoice = null;
-            }
+            if (customerId != null)
+                query = query.Where(i => i.CustomerId == customerId);
 
-            // ✅ Nếu không tìm thấy hóa đơn phù hợp → tạo mới
-            if (invoice == null)
-            {
-                invoice = new Invoice
-                {
-                    CustomerId = customerId,
-                    CompanyId = companyId,
-                    BillingMonth = month,
-                    BillingYear = year,
-                    Status = "Unpaid",
-                    IsMonthlyInvoice = true,
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    DueDate = now.AddMonths(1) // Hạn thanh toán sau 1 tháng
-                    
-                };
+            if (companyId != null)
+                query = query.Where(i => i.CompanyId == companyId);
 
-                await _context.Invoices.AddAsync(invoice);
-                await _context.SaveChangesAsync();
+            // 1️⃣ Ưu tiên lấy invoice chưa thanh toán (Unpaid)
+            var unpaid = await query.FirstOrDefaultAsync(i => i.Status == "Unpaid");
 
-                invoice = await _context.Invoices
-                    .Include(i => i.Subscription)
-                        .ThenInclude(s => s.SubscriptionPlan)
-                    .FirstOrDefaultAsync(i => i.InvoiceId == invoice.InvoiceId);
-            }
+            if (unpaid != null)
+                return unpaid;
 
-            return invoice;
+            // 2️⃣ Không có unpaid → trả về Paid (thường để biết đã tồn tại)
+            var paid = await query.FirstOrDefaultAsync(i => i.Status == "Paid");
+
+            return paid;
         }
+
+
 
         // ============================================================
         // 🔹 Tính lại tổng tiền hóa đơn (khi có thêm session)

@@ -72,10 +72,6 @@ namespace Services.Implementations
             int portId;
             int vehicleId;
 
-            // Lưu tạm thông tin chủ sở hữu được gửi từ request
-            int? requestCustomerId = dto.CustomerId > 0 ? dto.CustomerId : null;
-            int? requestCompanyId = dto.CompanyId > 0 ? dto.CompanyId : null;
-
             // 1️⃣ Có booking
             if (dto.BookingId.HasValue)
             {
@@ -117,25 +113,6 @@ namespace Services.Implementations
             var vehicle = await _vehicleRepo.GetByIdAsync(vehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
-            // 3.1️⃣ Kiểm tra quyền sở hữu xe
-            // Nếu là khách hàng cá nhân: Vehicle.CustomerId phải trùng với dto.CustomerId
-            if (requestCustomerId.HasValue)
-            {
-                if (vehicle.CustomerId != requestCustomerId.Value)
-                {
-                    throw new Exception("Xe không thuộc về khách hàng đang đăng nhập.");
-                }
-            }
-
-            // Nếu là công ty: Vehicle.CompanyId phải trùng với dto.CompanyId (nếu gửi lên)
-            if (requestCompanyId.HasValue)
-            {
-                if (vehicle.CompanyId != requestCompanyId.Value)
-                {
-                    throw new Exception("Xe không thuộc về công ty này.");
-                }
-            }
-
             if (!string.Equals(vehicle.ConnectorType, portEntity.ConnectorType, StringComparison.OrdinalIgnoreCase))
                 throw new Exception($"Xe ({vehicle.ConnectorType}) không tương thích với cổng sạc ({portEntity.ConnectorType}).");
 
@@ -147,12 +124,8 @@ namespace Services.Implementations
                 ?? throw new Exception($"Không có PricingRule cho {charger.Type} - {charger.PowerKw}kW ({timeRange}).");
 
             // 5️⃣ Xác định Customer/Company
-            int? customerId = requestCustomerId;
-            // Nếu là customer cá nhân -> companyId = null
-            // Nếu là company -> ưu tiên company từ request, nếu không có thì fallback theo xe
-            int? companyId = requestCustomerId.HasValue
-                ? null
-                : (requestCompanyId ?? vehicle.CompanyId);
+            int? customerId = dto.CustomerId > 0 ? dto.CustomerId : null;
+            int? companyId = dto.CustomerId > 0 ? null : (dto.CompanyId > 0 ? dto.CompanyId : vehicle.CompanyId);
 
             // 6️⃣ Tạo session
             var session = new ChargingSession
@@ -186,26 +159,35 @@ namespace Services.Implementations
 
             var rule = await _pricingRepo.GetByIdAsync(session.PricingRuleId)
                 ?? throw new Exception("Không tìm thấy PricingRule.");
+
             var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
             if (vehicle.BatteryCapacity is null or <= 0)
                 throw new Exception("Dung lượng pin của xe không hợp lệ.");
 
+            // SOC
             int startSoc = session.StartSoc ?? 50;
             int endSoc = dto.EndSoc ?? _rand.Next(startSoc + 10, 101);
             if (endSoc <= startSoc)
                 throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
 
+            // =========================
+            // ⚡ Tính toán chi phí
+            // =========================
             session.EndSoc = endSoc;
             session.EndedAt = DateTime.Now;
+
             session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
             session.DurationMin = (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
             session.IdleMin = dto.IdleMin ?? 0;
 
-            var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
+            var activeSub = await _subscriptionRepo
+                .GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
-            decimal subtotal = (session.EnergyKwh ?? 0M) * rule.PricePerKwh;
+            // Subtotal
+            decimal subtotal = (session.EnergyKwh ?? 0) * rule.PricePerKwh;
+
             int freeIdle = activeSub?.SubscriptionPlan?.FreeIdleMinutes ?? 0;
             int chargeableIdle = Math.Max(session.IdleMin.Value - freeIdle, 0);
             subtotal += chargeableIdle * rule.IdleFeePerMin;
@@ -222,7 +204,9 @@ namespace Services.Implementations
 
             await _sessionRepo.UpdateAsync(session);
 
-            // 🟢 Giải phóng cổng
+            // ============================================================
+            // 🔓 Giải phóng Port
+            // ============================================================
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
             {
@@ -230,7 +214,9 @@ namespace Services.Implementations
                 await _portRepo.UpdateAsync(port);
             }
 
-            // 🟢 Cập nhật booking nếu có
+            // ============================================================
+            // 📌 Booking
+            // ============================================================
             if (session.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(session.BookingId.Value);
@@ -241,21 +227,22 @@ namespace Services.Implementations
                 }
             }
 
-            // 🧾 HÓA ĐƠN: đảm bảo không ghi sai tháng
+            // ============================================================
+            // 🧾 HÓA ĐƠN — LOGIC ĐÃ FIX CHUẨN
+            // ============================================================
             if (session.CustomerId != null || session.CompanyId != null)
             {
                 var now = DateTime.UtcNow.AddHours(7);
 
-                // Lấy hóa đơn tháng này nếu có
-                var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(
-                    session.CustomerId, session.CompanyId, now.Month, now.Year);
+                var invoice = await _invoiceRepo.GetMonthlyInvoiceAsync(
+                    session.CustomerId,
+                    session.CompanyId,
+                    now.Month,
+                    now.Year
+                );
 
-                // ❗ Điều kiện cần tạo hóa đơn mới:
-                // - Không cùng tháng
-                // - HOẶC hóa đơn đã thanh toán (Paid)
-                if (invoice.BillingMonth != now.Month ||
-                    invoice.BillingYear != now.Year ||
-                    invoice.Status == "Paid")
+             
+                if (invoice == null || invoice.Status == "Paid")
                 {
                     invoice = new Invoice
                     {
@@ -265,38 +252,40 @@ namespace Services.Implementations
                         BillingYear = now.Year,
                         Status = "Unpaid",
                         IsMonthlyInvoice = true,
-                        CreatedAt = DateTime.Now,
-                        UpdatedAt = DateTime.Now,
-                        DueDate = DateTime.Now.AddMonths(1)
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        DueDate = now.AddMonths(1)
                     };
 
                     await _invoiceRepo.AddAsync(invoice);
                 }
 
-                // 🔹 Liên kết subscription (nếu có)
+                // Gắn Subscription
                 if (activeSub != null)
                 {
                     invoice.SubscriptionId = activeSub.SubscriptionId;
-                    await _invoiceRepo.UpdateAsync(invoice);
                 }
 
-                // 🔹 Cộng session vào invoice
+                // Thêm session vào invoice
                 invoice.ChargingSessions ??= new List<ChargingSession>();
                 invoice.ChargingSessions.Add(session);
 
-                invoice.Total = (invoice.Total ?? 0M) + session.Total;
-                invoice.UpdatedAt = DateTime.Now;
+                // Recalculate invoice tổng
+                invoice.Subtotal = invoice.ChargingSessions.Sum(s => s.Subtotal ?? 0);
+                invoice.Tax = Math.Round(invoice.Subtotal.Value * 0.1M, 2);
+                invoice.Total = invoice.Subtotal + invoice.Tax + (invoice.SubscriptionAdjustment ?? 0);
+                invoice.UpdatedAt = now;
 
-                await _invoiceRepo.SaveAsync();
+                await _invoiceRepo.UpdateAsync(invoice);
 
-                // 🔹 Gán invoiceId vào session
+                // Gán invoiceId vào session
                 session.InvoiceId = invoice.InvoiceId;
                 await _sessionRepo.UpdateAsync(session);
             }
 
-
             return session;
         }
+
 
 
         // ============================================================
@@ -306,8 +295,8 @@ namespace Services.Implementations
         {
             var port = await _portRepo.Query()
                 .Include(p => p.Charger)
-                .FirstOrDefaultAsync(p => p.PortId == dto.PortId)
-                ?? throw new Exception("Không tìm thấy cổng sạc.");
+                .FirstOrDefaultAsync(p => p.Code == dto.PortCode)
+                ?? throw new Exception("Không tìm thấy trụ sạc với mã này.");
 
             if (port.Status != "Available")
                 throw new Exception("Trụ sạc đang bận hoặc không khả dụng.");
