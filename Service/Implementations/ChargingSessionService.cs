@@ -73,6 +73,10 @@ namespace Services.Implementations
             int portId;
             int vehicleId;
 
+            // Lưu tạm thông tin chủ sở hữu được gửi từ request
+            int? requestCustomerId = dto.CustomerId > 0 ? dto.CustomerId : null;
+            int? requestCompanyId = dto.CompanyId > 0 ? dto.CompanyId : null;
+
             // 1️⃣ Có booking
             if (dto.BookingId.HasValue)
             {
@@ -114,6 +118,25 @@ namespace Services.Implementations
             var vehicle = await _vehicleRepo.GetByIdAsync(vehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
+            // 3.1️⃣ Kiểm tra quyền sở hữu xe
+            // Nếu là khách hàng cá nhân: Vehicle.CustomerId phải trùng với dto.CustomerId
+            if (requestCustomerId.HasValue)
+            {
+                if (vehicle.CustomerId != requestCustomerId.Value)
+                {
+                    throw new Exception("Xe không thuộc về khách hàng đang đăng nhập.");
+                }
+            }
+
+            // Nếu là công ty: Vehicle.CompanyId phải trùng với dto.CompanyId (nếu gửi lên)
+            if (requestCompanyId.HasValue)
+            {
+                if (vehicle.CompanyId != requestCompanyId.Value)
+                {
+                    throw new Exception("Xe không thuộc về công ty này.");
+                }
+            }
+
             if (!string.Equals(vehicle.ConnectorType, portEntity.ConnectorType, StringComparison.OrdinalIgnoreCase))
                 throw new Exception($"Xe ({vehicle.ConnectorType}) không tương thích với cổng sạc ({portEntity.ConnectorType}).");
 
@@ -125,8 +148,12 @@ namespace Services.Implementations
                 ?? throw new Exception($"Không có PricingRule cho {charger.Type} - {charger.PowerKw}kW ({timeRange}).");
 
             // 5️⃣ Xác định Customer/Company
-            int? customerId = dto.CustomerId > 0 ? dto.CustomerId : null;
-            int? companyId = dto.CustomerId > 0 ? null : (dto.CompanyId > 0 ? dto.CompanyId : vehicle.CompanyId);
+            int? customerId = requestCustomerId;
+            // Nếu là customer cá nhân -> companyId = null
+            // Nếu là company -> ưu tiên company từ request, nếu không có thì fallback theo xe
+            int? companyId = requestCustomerId.HasValue
+                ? null
+                : (requestCompanyId ?? vehicle.CompanyId);
 
             // 6️⃣ Tạo session
             var session = new ChargingSession
