@@ -218,11 +218,17 @@ namespace Services.Implementations
             if (session.CustomerId != null || session.CompanyId != null)
             {
                 var now = DateTime.UtcNow.AddHours(7);
+
+                // Lấy hóa đơn tháng này nếu có
                 var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(
                     session.CustomerId, session.CompanyId, now.Month, now.Year);
 
-                // ⚠️ Nếu hóa đơn cũ (tháng trước) vẫn chưa thanh toán → tạo mới
-                if (invoice.BillingMonth != now.Month || invoice.BillingYear != now.Year)
+                // ❗ Điều kiện cần tạo hóa đơn mới:
+                // - Không cùng tháng
+                // - HOẶC hóa đơn đã thanh toán (Paid)
+                if (invoice.BillingMonth != now.Month ||
+                    invoice.BillingYear != now.Year ||
+                    invoice.Status == "Paid")
                 {
                     invoice = new Invoice
                     {
@@ -234,28 +240,33 @@ namespace Services.Implementations
                         IsMonthlyInvoice = true,
                         CreatedAt = DateTime.Now,
                         UpdatedAt = DateTime.Now,
-                        DueDate = DateTime.Now.AddMonths(1),
-
+                        DueDate = DateTime.Now.AddMonths(1)
                     };
+
                     await _invoiceRepo.AddAsync(invoice);
                 }
 
+                // 🔹 Liên kết subscription (nếu có)
                 if (activeSub != null)
                 {
                     invoice.SubscriptionId = activeSub.SubscriptionId;
                     await _invoiceRepo.UpdateAsync(invoice);
                 }
 
+                // 🔹 Cộng session vào invoice
                 invoice.ChargingSessions ??= new List<ChargingSession>();
                 invoice.ChargingSessions.Add(session);
+
                 invoice.Total = (invoice.Total ?? 0M) + session.Total;
                 invoice.UpdatedAt = DateTime.Now;
 
                 await _invoiceRepo.SaveAsync();
 
+                // 🔹 Gán invoiceId vào session
                 session.InvoiceId = invoice.InvoiceId;
                 await _sessionRepo.UpdateAsync(session);
             }
+
 
             return session;
         }
