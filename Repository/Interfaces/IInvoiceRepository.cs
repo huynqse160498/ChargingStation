@@ -14,7 +14,7 @@ namespace Repositories.Interfaces
         Task UpdateAsync(Invoice invoice);
         Task DeleteAsync(Invoice invoice);
 
-        Task<Invoice> GetMonthlyInvoiceAsync(int? customerId,int? companyId, int month, int year);
+        Task<Invoice> GetOrCreateMonthlyInvoiceAsync(int? customerId,int? companyId, int month, int year);
         Task RecalculateInvoiceAsync(int invoiceId);
         Task<List<Invoice>> GetAllAsync(Expression<Func<Invoice, bool>> filter);
 

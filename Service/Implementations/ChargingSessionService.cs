@@ -159,7 +159,6 @@ namespace Services.Implementations
 
             var rule = await _pricingRepo.GetByIdAsync(session.PricingRuleId)
                 ?? throw new Exception("Không tìm thấy PricingRule.");
-
             var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
@@ -171,9 +170,6 @@ namespace Services.Implementations
             if (endSoc <= startSoc)
                 throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
 
-            // =========================
-            // ⚡ Tính toán chi phí
-            // =========================
             session.EndSoc = endSoc;
             session.EndedAt = DateTime.Now;
             session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
@@ -183,7 +179,6 @@ namespace Services.Implementations
             var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
             decimal subtotal = (session.EnergyKwh ?? 0M) * rule.PricePerKwh;
-
             int freeIdle = activeSub?.SubscriptionPlan?.FreeIdleMinutes ?? 0;
             int chargeableIdle = Math.Max(session.IdleMin.Value - freeIdle, 0);
             subtotal += chargeableIdle * rule.IdleFeePerMin;
@@ -200,9 +195,7 @@ namespace Services.Implementations
 
             await _sessionRepo.UpdateAsync(session);
 
-            // ============================================================
-            // 🔓 Giải phóng port
-            // ============================================================
+            // 🟢 Giải phóng cổng
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
             {
@@ -210,9 +203,7 @@ namespace Services.Implementations
                 await _portRepo.UpdateAsync(port);
             }
 
-            // ============================================================
-            // 📌 Booking
-            // ============================================================
+            // 🟢 Cập nhật booking nếu có
             if (session.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(session.BookingId.Value);
@@ -223,29 +214,15 @@ namespace Services.Implementations
                 }
             }
 
-         
+            // 🧾 HÓA ĐƠN: đảm bảo không ghi sai tháng
             if (session.CustomerId != null || session.CompanyId != null)
             {
-<<<<<<< Updated upstream
                 var now = DateTime.UtcNow.AddHours(7);
                 var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(
                     session.CustomerId, session.CompanyId, now.Month, now.Year);
 
                 // ⚠️ Nếu hóa đơn cũ (tháng trước) vẫn chưa thanh toán → tạo mới
                 if (invoice.BillingMonth != now.Month || invoice.BillingYear != now.Year)
-=======
-                var now = DateTime.UtcNow.AddHours(7); // timezone VN
-
-                var invoice = await _invoiceRepo.GetMonthlyInvoiceAsync(
-                    session.CustomerId,
-                    session.CompanyId,
-                    now.Month,
-                    now.Year
-                );
-
-           
-                if (invoice == null || invoice.Status == "Paid")
->>>>>>> Stashed changes
                 {
                     invoice = new Invoice
                     {
@@ -255,57 +232,33 @@ namespace Services.Implementations
                         BillingYear = now.Year,
                         Status = "Unpaid",
                         IsMonthlyInvoice = true,
-<<<<<<< Updated upstream
                         CreatedAt = DateTime.Now,
                         UpdatedAt = DateTime.Now,
                         DueDate = DateTime.Now.AddMonths(1),
-=======
-                        CreatedAt = now,
-                        UpdatedAt = now,
-                        DueDate = now.AddMonths(1)
-                    };
->>>>>>> Stashed changes
 
                     };
                     await _invoiceRepo.AddAsync(invoice);
                 }
 
-<<<<<<< Updated upstream
-=======
-                // Gắn subscription nếu có
->>>>>>> Stashed changes
                 if (activeSub != null)
                 {
                     invoice.SubscriptionId = activeSub.SubscriptionId;
                     await _invoiceRepo.UpdateAsync(invoice);
                 }
 
-<<<<<<< Updated upstream
                 invoice.ChargingSessions ??= new List<ChargingSession>();
                 invoice.ChargingSessions.Add(session);
-=======
-                // ✔ Thêm session vào invoice
-                invoice.ChargingSessions ??= new List<ChargingSession>();
-                invoice.ChargingSessions.Add(session);
-
-                // ✔ Update tổng tiền hóa đơn
->>>>>>> Stashed changes
                 invoice.Total = (invoice.Total ?? 0M) + session.Total;
-                invoice.UpdatedAt = now;
+                invoice.UpdatedAt = DateTime.Now;
 
                 await _invoiceRepo.SaveAsync();
 
-<<<<<<< Updated upstream
-=======
-                // ✔ Gán invoiceId vào session
->>>>>>> Stashed changes
                 session.InvoiceId = invoice.InvoiceId;
                 await _sessionRepo.UpdateAsync(session);
             }
 
             return session;
         }
-
 
 
         // ============================================================
