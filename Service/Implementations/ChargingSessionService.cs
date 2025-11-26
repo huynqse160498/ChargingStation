@@ -159,6 +159,7 @@ namespace Services.Implementations
 
             var rule = await _pricingRepo.GetByIdAsync(session.PricingRuleId)
                 ?? throw new Exception("Không tìm thấy PricingRule.");
+
             var vehicle = await _vehicleRepo.GetByIdAsync(session.VehicleId)
                 ?? throw new Exception("Không tìm thấy xe.");
 
@@ -170,6 +171,9 @@ namespace Services.Implementations
             if (endSoc <= startSoc)
                 throw new Exception("SOC kết thúc phải lớn hơn SOC bắt đầu.");
 
+            // =========================
+            // ⚡ Tính toán chi phí
+            // =========================
             session.EndSoc = endSoc;
             session.EndedAt = DateTime.Now;
             session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
@@ -179,6 +183,7 @@ namespace Services.Implementations
             var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
             decimal subtotal = (session.EnergyKwh ?? 0M) * rule.PricePerKwh;
+
             int freeIdle = activeSub?.SubscriptionPlan?.FreeIdleMinutes ?? 0;
             int chargeableIdle = Math.Max(session.IdleMin.Value - freeIdle, 0);
             subtotal += chargeableIdle * rule.IdleFeePerMin;
@@ -195,7 +200,9 @@ namespace Services.Implementations
 
             await _sessionRepo.UpdateAsync(session);
 
-            // 🟢 Giải phóng cổng
+            // ============================================================
+            // 🔓 Giải phóng port
+            // ============================================================
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
             {
@@ -203,7 +210,9 @@ namespace Services.Implementations
                 await _portRepo.UpdateAsync(port);
             }
 
-            // 🟢 Cập nhật booking nếu có
+            // ============================================================
+            // 📌 Booking
+            // ============================================================
             if (session.BookingId.HasValue)
             {
                 var booking = await _bookingRepo.GetByIdAsync(session.BookingId.Value);
@@ -214,15 +223,25 @@ namespace Services.Implementations
                 }
             }
 
-            // 🧾 HÓA ĐƠN: đảm bảo không ghi sai tháng
+            // ============================================================
+            // 🧾 HÓA ĐƠN — PHẦN QUAN TRỌNG NHẤT
+            // ============================================================
             if (session.CustomerId != null || session.CompanyId != null)
             {
-                var now = DateTime.UtcNow.AddHours(7);
-                var invoice = await _invoiceRepo.GetOrCreateMonthlyInvoiceAsync(
-                    session.CustomerId, session.CompanyId, now.Month, now.Year);
+                var now = DateTime.UtcNow.AddHours(7); // timezone VN
 
-                // ⚠️ Nếu hóa đơn cũ (tháng trước) vẫn chưa thanh toán → tạo mới
-                if (invoice.BillingMonth != now.Month || invoice.BillingYear != now.Year)
+                // ✔ Lấy hóa đơn tháng này — repo đã FIX tách Customer/Company
+                var invoice = await _invoiceRepo.GetMonthlyInvoiceAsync(
+                    session.CustomerId,
+                    session.CompanyId,
+                    now.Month,
+                    now.Year
+                );
+
+                // ✔ Tạo mới nếu:
+                //    - Không có hóa đơn
+                //    - Hóa đơn đã Paid
+                if (invoice == null || invoice.Status == "Paid")
                 {
                     invoice = new Invoice
                     {
@@ -232,33 +251,39 @@ namespace Services.Implementations
                         BillingYear = now.Year,
                         Status = "Unpaid",
                         IsMonthlyInvoice = true,
-                        CreatedAt = DateTime.Now,
-                        UpdatedAt = DateTime.Now,
-                        DueDate = DateTime.Now.AddMonths(1),
-
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                        DueDate = now.AddMonths(1)
                     };
+
                     await _invoiceRepo.AddAsync(invoice);
                 }
 
+                // Gắn subscription nếu có
                 if (activeSub != null)
                 {
                     invoice.SubscriptionId = activeSub.SubscriptionId;
                     await _invoiceRepo.UpdateAsync(invoice);
                 }
 
+                // ✔ Thêm session vào invoice
                 invoice.ChargingSessions ??= new List<ChargingSession>();
                 invoice.ChargingSessions.Add(session);
+
+                // ✔ Update tổng tiền hóa đơn
                 invoice.Total = (invoice.Total ?? 0M) + session.Total;
-                invoice.UpdatedAt = DateTime.Now;
+                invoice.UpdatedAt = now;
 
                 await _invoiceRepo.SaveAsync();
 
+                // ✔ Gán invoiceId vào session
                 session.InvoiceId = invoice.InvoiceId;
                 await _sessionRepo.UpdateAsync(session);
             }
 
             return session;
         }
+
 
 
         // ============================================================
