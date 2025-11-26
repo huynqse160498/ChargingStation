@@ -166,6 +166,7 @@ namespace Services.Implementations
             if (vehicle.BatteryCapacity is null or <= 0)
                 throw new Exception("Dung lượng pin của xe không hợp lệ.");
 
+            // SOC
             int startSoc = session.StartSoc ?? 50;
             int endSoc = dto.EndSoc ?? _rand.Next(startSoc + 10, 101);
             if (endSoc <= startSoc)
@@ -176,13 +177,16 @@ namespace Services.Implementations
             // =========================
             session.EndSoc = endSoc;
             session.EndedAt = DateTime.Now;
+
             session.EnergyKwh = Math.Round(vehicle.BatteryCapacity.Value * (endSoc - startSoc) / 100M, 2);
             session.DurationMin = (int)(session.EndedAt.Value - session.StartedAt!.Value).TotalMinutes;
             session.IdleMin = dto.IdleMin ?? 0;
 
-            var activeSub = await _subscriptionRepo.GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
+            var activeSub = await _subscriptionRepo
+                .GetActiveByCustomerOrCompanyAsync(session.CustomerId, session.CompanyId);
 
-            decimal subtotal = (session.EnergyKwh ?? 0M) * rule.PricePerKwh;
+            // Subtotal
+            decimal subtotal = (session.EnergyKwh ?? 0) * rule.PricePerKwh;
 
             int freeIdle = activeSub?.SubscriptionPlan?.FreeIdleMinutes ?? 0;
             int chargeableIdle = Math.Max(session.IdleMin.Value - freeIdle, 0);
@@ -201,7 +205,7 @@ namespace Services.Implementations
             await _sessionRepo.UpdateAsync(session);
 
             // ============================================================
-            // 🔓 Giải phóng port
+            // 🔓 Giải phóng Port
             // ============================================================
             var port = await _portRepo.GetByIdAsync(session.PortId);
             if (port != null)
@@ -224,13 +228,12 @@ namespace Services.Implementations
             }
 
             // ============================================================
-            // 🧾 HÓA ĐƠN — PHẦN QUAN TRỌNG NHẤT
+            // 🧾 HÓA ĐƠN — LOGIC ĐÃ FIX CHUẨN
             // ============================================================
             if (session.CustomerId != null || session.CompanyId != null)
             {
-                var now = DateTime.UtcNow.AddHours(7); // timezone VN
+                var now = DateTime.UtcNow.AddHours(7);
 
-                // ✔ Lấy hóa đơn tháng này — repo đã FIX tách Customer/Company
                 var invoice = await _invoiceRepo.GetMonthlyInvoiceAsync(
                     session.CustomerId,
                     session.CompanyId,
@@ -238,9 +241,7 @@ namespace Services.Implementations
                     now.Year
                 );
 
-                // ✔ Tạo mới nếu:
-                //    - Không có hóa đơn
-                //    - Hóa đơn đã Paid
+             
                 if (invoice == null || invoice.Status == "Paid")
                 {
                     invoice = new Invoice
@@ -259,24 +260,25 @@ namespace Services.Implementations
                     await _invoiceRepo.AddAsync(invoice);
                 }
 
-                // Gắn subscription nếu có
+                // Gắn Subscription
                 if (activeSub != null)
                 {
                     invoice.SubscriptionId = activeSub.SubscriptionId;
-                    await _invoiceRepo.UpdateAsync(invoice);
                 }
 
-                // ✔ Thêm session vào invoice
+                // Thêm session vào invoice
                 invoice.ChargingSessions ??= new List<ChargingSession>();
                 invoice.ChargingSessions.Add(session);
 
-                // ✔ Update tổng tiền hóa đơn
-                invoice.Total = (invoice.Total ?? 0M) + session.Total;
+                // Recalculate invoice tổng
+                invoice.Subtotal = invoice.ChargingSessions.Sum(s => s.Subtotal ?? 0);
+                invoice.Tax = Math.Round(invoice.Subtotal.Value * 0.1M, 2);
+                invoice.Total = invoice.Subtotal + invoice.Tax + (invoice.SubscriptionAdjustment ?? 0);
                 invoice.UpdatedAt = now;
 
-                await _invoiceRepo.SaveAsync();
+                await _invoiceRepo.UpdateAsync(invoice);
 
-                // ✔ Gán invoiceId vào session
+                // Gán invoiceId vào session
                 session.InvoiceId = invoice.InvoiceId;
                 await _sessionRepo.UpdateAsync(session);
             }

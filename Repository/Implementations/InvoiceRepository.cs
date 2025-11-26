@@ -94,32 +94,29 @@ namespace Repositories.Implementations
         // ============================================================
         public async Task<Invoice?> GetMonthlyInvoiceAsync(int? customerId, int? companyId, int month, int year)
         {
+            IQueryable<Invoice> query = _context.Invoices
+                .Include(i => i.Subscription).ThenInclude(s => s.SubscriptionPlan)
+                .Include(i => i.ChargingSessions)
+                .Where(i => i.BillingMonth == month && i.BillingYear == year && i.IsMonthlyInvoice);
+
             if (customerId != null)
-            {
-                return await _context.Invoices
-                    .Include(i => i.Subscription).ThenInclude(s => s.SubscriptionPlan)
-                    .Include(i => i.ChargingSessions)
-                    .FirstOrDefaultAsync(i =>
-                        i.CustomerId == customerId &&
-                        i.BillingMonth == month &&
-                        i.BillingYear == year &&
-                        i.IsMonthlyInvoice);
-            }
+                query = query.Where(i => i.CustomerId == customerId);
 
             if (companyId != null)
-            {
-                return await _context.Invoices
-                    .Include(i => i.Subscription).ThenInclude(s => s.SubscriptionPlan)
-                    .Include(i => i.ChargingSessions)
-                    .FirstOrDefaultAsync(i =>
-                        i.CompanyId == companyId &&
-                        i.BillingMonth == month &&
-                        i.BillingYear == year &&
-                        i.IsMonthlyInvoice);
-            }
+                query = query.Where(i => i.CompanyId == companyId);
 
-            return null;
+            // 1️⃣ Ưu tiên lấy invoice chưa thanh toán (Unpaid)
+            var unpaid = await query.FirstOrDefaultAsync(i => i.Status == "Unpaid");
+
+            if (unpaid != null)
+                return unpaid;
+
+            // 2️⃣ Không có unpaid → trả về Paid (thường để biết đã tồn tại)
+            var paid = await query.FirstOrDefaultAsync(i => i.Status == "Paid");
+
+            return paid;
         }
+
 
 
         // ============================================================
