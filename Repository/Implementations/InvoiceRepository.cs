@@ -89,67 +89,37 @@ namespace Repositories.Implementations
             await _context.SaveChangesAsync();
         }
 
-        // ============================================================
-        // 🔹 Get hoặc Create hóa đơn tháng (logic FIXED)
-        // ============================================================
-        public async Task<Invoice> GetOrCreateMonthlyInvoiceAsync(
-            int? customerId,
-            int? companyId,
-            int month,
-            int year)
+        public async Task<Invoice?> GetMonthlyInvoiceAsync(int? customerId, int? companyId, int month, int year)
         {
-            var now = DateTime.UtcNow.AddHours(7); // ✅ Đảm bảo timezone Việt Nam
-
-            // Tìm hóa đơn tháng đang xử lý (chưa thanh toán)
-            var invoice = await _context.Invoices
-                .Include(i => i.Subscription)
-                    .ThenInclude(s => s.SubscriptionPlan)
-                .Include(i => i.ChargingSessions)
-                .FirstOrDefaultAsync(i =>
-                    (
-                        (customerId != null && i.CustomerId == customerId) ||
-                        (companyId != null && i.CompanyId == companyId)
-                    ) &&
-                    i.BillingMonth == month &&
-                    i.BillingYear == year &&
-                    i.IsMonthlyInvoice);
-
-            // ❗ Nếu hóa đơn cũ thuộc tháng trước (dù chưa thanh toán) → bỏ qua để tạo hóa đơn mới
-            if (invoice != null &&
-                (invoice.BillingYear < now.Year ||
-                 (invoice.BillingYear == now.Year && invoice.BillingMonth < now.Month)))
+            if (customerId != null)
             {
-                invoice = null;
+                return await _context.Invoices
+                    .Include(i => i.Subscription).ThenInclude(s => s.SubscriptionPlan)
+                    .Include(i => i.ChargingSessions)
+                    .FirstOrDefaultAsync(i =>
+                        i.CustomerId == customerId &&
+                        i.BillingMonth == month &&
+                        i.BillingYear == year &&
+                        i.IsMonthlyInvoice);
             }
 
-            // ✅ Nếu không tìm thấy hóa đơn phù hợp → tạo mới
-            if (invoice == null)
+            if (companyId != null)
             {
-                invoice = new Invoice
-                {
-                    CustomerId = customerId,
-                    CompanyId = companyId,
-                    BillingMonth = month,
-                    BillingYear = year,
-                    Status = "Unpaid",
-                    IsMonthlyInvoice = true,
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                    DueDate = now.AddMonths(1) // Hạn thanh toán sau 1 tháng
-                    
-                };
-
-                await _context.Invoices.AddAsync(invoice);
-                await _context.SaveChangesAsync();
-
-                invoice = await _context.Invoices
-                    .Include(i => i.Subscription)
-                        .ThenInclude(s => s.SubscriptionPlan)
-                    .FirstOrDefaultAsync(i => i.InvoiceId == invoice.InvoiceId);
+                return await _context.Invoices
+                    .Include(i => i.Subscription).ThenInclude(s => s.SubscriptionPlan)
+                    .Include(i => i.ChargingSessions)
+                    .FirstOrDefaultAsync(i =>
+                        i.CompanyId == companyId &&
+                        i.BillingMonth == month &&
+                        i.BillingYear == year &&
+                        i.IsMonthlyInvoice);
             }
 
-            return invoice;
+            return null;
         }
+
+
+
 
         // ============================================================
         // 🔹 Tính lại tổng tiền hóa đơn (khi có thêm session)
