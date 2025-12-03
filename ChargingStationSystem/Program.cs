@@ -9,6 +9,7 @@ using Services.Interfaces;
 using Services.Implementations;
 using System.Text;
 using Repositories.Models;
+using ChargingStationSystem.Hubs;
 
 namespace ChargingStationSystem
 {
@@ -126,6 +127,9 @@ namespace ChargingStationSystem
                     options.JsonSerializerOptions.WriteIndented = true;
                 });
 
+            // ==================== SIGNALR ====================
+            builder.Services.AddSignalR();
+
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(c =>
             {
@@ -180,7 +184,13 @@ namespace ChargingStationSystem
             app.UseAuthentication();
             app.UseAuthorization();
 
+            // ==================== STATIC FILES (cho demo HTML) ====================
+            app.UseStaticFiles();
+
             app.MapControllers();
+
+            // ==================== SIGNALR HUB ENDPOINT ====================
+            app.MapHub<ChargingStationDemoHub>("/demoHub");
 
             app.Run();
         }

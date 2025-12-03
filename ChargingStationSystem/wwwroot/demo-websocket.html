@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo WebSocket - SignalR Charging Station</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #dc3545;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .panel h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .messages {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .message {
+            padding: 8px;
+            margin-bottom: 8px;
+            border-left: 3px solid #667eea;
+            background: #f8f9fa;
+            border-radius: 3px;
+        }
+
+        .message.system {
+            border-left-color: #28a745;
+        }
+
+        .message.error {
+            border-left-color: #dc3545;
+        }
+
+        .message-time {
+            color: #6c757d;
+            font-size: 11px;
+        }
+
+        .charging-update {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+
+        .charging-update h3 {
+            margin-bottom: 15px;
+        }
+
+        .charging-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Demo WebSocket - SignalR</h1>
+            <p>Hệ thống quản lý trạm sạc xe điện - Real-time Communication</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Đang kết nối...</span>
+            </div>
+            <div>
+                <strong>Connection ID:</strong> <span id="connectionId">-</span>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Panel 1: Gửi tin nhắn -->
+            <div class="panel">
+                <h2>💬 Gửi tin nhắn</h2>
+                <div class="form-group">
+                    <label>Tên người gửi:</label>
+                    <input type="text" id="userName" placeholder="Nhập tên của bạn" value="User">
+                </div>
+                <div class="form-group">
+                    <label>Tin nhắn:</label>
+                    <textarea id="messageInput" placeholder="Nhập tin nhắn..."></textarea>
+                </div>
+                <button onclick="sendMessage()">Gửi tin nhắn</button>
+                <button onclick="startAutoSimulation()" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); margin-top: 10px;">
+                    🚀 Bắt đầu Simulation tự động
+                </button>
+            </div>
+
+            <!-- Panel 2: Tin nhắn nhận được -->
+            <div class="panel">
+                <h2>📨 Tin nhắn nhận được</h2>
+                <div class="messages" id="messages"></div>
+            </div>
+
+            <!-- Panel 3: Cập nhật trạng thái sạc -->
+            <div class="panel" style="grid-column: 1 / -1;">
+                <h2>🔋 Cập nhật trạng thái sạc (Real-time)</h2>
+                <div id="chargingUpdate" style="display: none;">
+                    <div class="charging-update">
+                        <h3>Phiên sạc #<span id="updateSessionId">-</span></h3>
+                        <div class="charging-stats">
+                            <div class="stat-item">
+                                <div class="stat-label">Mức pin hiện tại</div>
+                                <div class="stat-value"><span id="updateSoc">0</span>%</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Năng lượng đã sạc</div>
+                                <div class="stat-value"><span id="updateEnergy">0</span> kWh</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Thời gian sạc</div>
+                                <div class="stat-value"><span id="updateDuration">0</span> phút</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-label">Cập nhật lúc</div>
+                                <div class="stat-value" style="font-size: 14px;"><span id="updateTime">-</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="noChargingUpdate" style="text-align: center; padding: 40px; color: #6c757d;">
+                    Chưa có cập nhật trạng thái sạc. Nhấn "Bắt đầu Simulation tự động" để xem demo.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SignalR Client Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    
+    <script>
+        let connection = null;
+        let connectionId = null;
+
+        // Khởi tạo kết nối SignalR
+        function initConnection() {
+            const hubUrl = window.location.origin + '/demoHub';
+            
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl(hubUrl)
+                .withAutomaticReconnect()
+                .build();
+
+            // Xử lý khi kết nối thành công
+            connection.onclose(() => {
+                updateStatus(false);
+            });
+
+            connection.onreconnecting(() => {
+                updateStatus(false, 'Đang kết nối lại...');
+            });
+
+            connection.onreconnected(() => {
+                updateStatus(true);
+            });
+
+            // Lắng nghe tin nhắn từ server
+            connection.on("ReceiveMessage", (user, message, timestamp) => {
+                addMessage(user, message, timestamp, 'normal');
+            });
+
+            // Lắng nghe cập nhật trạng thái sạc
+            connection.on("ReceiveChargingUpdate", (update) => {
+                updateChargingStatus(update);
+            });
+
+            // Bắt đầu kết nối
+            connection.start()
+                .then(() => {
+                    updateStatus(true);
+                    connectionId = connection.connectionId;
+                    document.getElementById('connectionId').textContent = connectionId;
+                    addMessage('System', '✅ Kết nối thành công!', new Date(), 'system');
+                })
+                .catch(err => {
+                    console.error('Lỗi kết nối:', err);
+                    updateStatus(false, 'Lỗi kết nối');
+                    addMessage('System', '❌ Lỗi kết nối: ' + err, new Date(), 'error');
+                });
+        }
+
+        // Cập nhật trạng thái kết nối
+        function updateStatus(connected, customText = null) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = customText || 'Đã kết nối';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = customText || 'Chưa kết nối';
+            }
+        }
+
+        // Thêm tin nhắn vào danh sách
+        function addMessage(user, message, timestamp, type = 'normal') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const time = new Date(timestamp).toLocaleTimeString('vi-VN');
+            messageDiv.innerHTML = `
+                <strong>${user}:</strong> ${message}
+                <div class="message-time">${time}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Gửi tin nhắn
+        function sendMessage() {
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                alert('Chưa kết nối đến server!');
+                return;
+            }
+
+            const userName = document.getElementById('userName').value || 'User';
+            const message = document.getElementById('messageInput').value;
+
+            if (!message.trim()) {
+                alert('Vui lòng nhập tin nhắn!');
+                return;
+            }
+
+            connection.invoke("SendMessage", userName, message)
+                .catch(err => {
+                    console.error('Lỗi gửi tin nhắn:', err);
+                    addMessage('System', '❌ Lỗi gửi tin nhắn: ' + err, new Date(), 'error');
+                });
+
+            document.getElementById('messageInput').value = '';
+        }
+
+        // Cập nhật trạng thái sạc
+        function updateChargingStatus(update) {
+            document.getElementById('noChargingUpdate').style.display = 'none';
+            document.getElementById('chargingUpdate').style.display = 'block';
+            
+            document.getElementById('updateSessionId').textContent = update.sessionId;
+            document.getElementById('updateSoc').textContent = update.currentSoc;
+            document.getElementById('updateEnergy').textContent = update.energyKwh.toFixed(2);
+            document.getElementById('updateDuration').textContent = update.durationMin;
+            
+            const time = new Date(update.timestamp).toLocaleTimeString('vi-VN');
+            document.getElementById('updateTime').textContent = time;
+        }
+
+        // Bắt đầu simulation tự động
+        function startAutoSimulation() {
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                alert('Chưa kết nối đến server!');
+                return;
+            }
+
+            const sessionId = Math.floor(Math.random() * 1000) + 1;
+            
+            fetch('/api/DemoHub/start-auto-simulation/' + sessionId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                addMessage('System', `🚀 ${data.message}`, new Date(), 'system');
+            })
+            .catch(err => {
+                console.error('Lỗi:', err);
+                addMessage('System', '❌ Lỗi: ' + err, new Date(), 'error');
+            });
+        }
+
+        // Cho phép gửi tin nhắn bằng phím Enter
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Khởi tạo khi trang load
+        window.addEventListener('load', () => {
+            initConnection();
+        });
+    </script>
+</body>
+</html>
+
